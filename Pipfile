@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+pytest = "*"
+coverage = "*"
+pylint = "*"
+
+[requires]
+python_version = "3.6"
+
+[scripts]
+test = "coverage run --source=./src -m pytest tests/"
+coverage = "coverage report -m"
+pylint = "pylint src"
