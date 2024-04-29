@@ -2,8 +2,8 @@
 
 import uuid
 import pytest
-from src.nofeardb.enums import DocumentStatus, RelationshipType
-from src.nofeardb.orm import Document, Field, Relationship
+from src.nofeardb.enums import DocumentStatus
+from src.nofeardb.orm import Document, Field
 
 
 class TestDoc(Document):

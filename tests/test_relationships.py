@@ -1,5 +1,6 @@
+from src.nofeardb.enums import DocumentStatus
 import pytest
-from src.nofeardb.orm import Document, Field, ManyToOne, OneToMany
+from src.nofeardb.orm import Document, ManyToOne, OneToMany
 
 
 class TestDoc(Document):
@@ -136,3 +137,97 @@ def test_bidirectional_many_to_one_unallowed_operations():
         
     with pytest.raises(RuntimeError):
         del doc.test_rel_docs[0]
+        
+def test_bidirectional_many_to_one_status_update():
+    doc = TestDoc()
+    doc.__status__ = DocumentStatus.SYNC
+    relDoc = TestRelDoc()
+    relDoc.__status__ = DocumentStatus.SYNC
+    
+    doc.test_rel_docs.append(relDoc)
+    assert doc.__status__ == DocumentStatus.MOD
+    assert relDoc.__status__ == DocumentStatus.MOD
+    
+    doc.__status__ = DocumentStatus.SYNC
+    relDoc.__status__ = DocumentStatus.SYNC
+    
+    doc.test_rel_docs.remove(relDoc)
+    assert doc.__status__ == DocumentStatus.MOD
+    assert relDoc.__status__ == DocumentStatus.MOD
+    
+    doc.__status__ = DocumentStatus.SYNC
+    relDoc.__status__ = DocumentStatus.SYNC
+    
+    doc.test_rel_docs = [relDoc]
+    assert doc.__status__ == DocumentStatus.MOD
+    assert relDoc.__status__ == DocumentStatus.MOD
+    
+def test_bidirectional_one_to_many_status_update():
+    doc = TestDoc()
+    relDoc = TestRelDoc()
+    doc.__status__ = DocumentStatus.SYNC
+    relDoc.__status__ = DocumentStatus.SYNC
+    
+    relDoc.test_doc = doc
+    assert doc.__status__ == DocumentStatus.MOD
+    assert relDoc.__status__ == DocumentStatus.MOD
+    
+    doc.__status__ = DocumentStatus.SYNC
+    relDoc.__status__ = DocumentStatus.SYNC
+    
+    relDoc.test_doc = None
+    assert doc.__status__ == DocumentStatus.MOD
+    assert relDoc.__status__ == DocumentStatus.MOD
+    
+def test_unidirectional_many_to_one_status_update():
+    class TestDocUni(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_rel_docs = OneToMany(
+            "RelTestDocUni",
+        )
+        
+    class RelTestDocUni(Document):
+        __documentname__ = "test_doc_uni"
+        
+    doc = TestDocUni()
+    doc.__status__ = DocumentStatus.SYNC
+    relDoc = RelTestDocUni()
+    relDoc.__status__ = DocumentStatus.SYNC
+    
+    doc.test_rel_docs.append(relDoc)
+    assert doc.__status__ == DocumentStatus.MOD
+    assert relDoc.__status__ == DocumentStatus.SYNC
+    
+def test_unidirectional_one_to_many_status_update():
+    class TestDocUni(Document):
+        __documentname__ = "test_doc_uni"
+        
+    class RelTestDocUni(Document):
+        __documentname__ = "test_doc_uni"
+        
+        test_doc = ManyToOne("TestDocUni")
+        
+    doc = TestDocUni()
+    doc.__status__ = DocumentStatus.SYNC
+    relDoc = RelTestDocUni()
+    relDoc.__status__ = DocumentStatus.SYNC
+    
+    relDoc.test_doc = doc
+    assert relDoc.__status__ == DocumentStatus.MOD
+    assert doc.__status__ == DocumentStatus.SYNC
+        
+# def test_reset_relationships():
+#     doc = TestDoc()
+#     relDoc = TestRelDoc()
+    
+#     doc.create_snapshot()
+#     doc.test_rel_docs.append(relDoc)
+    
+#     assert doc.test_rel_docs == [relDoc]
+#     assert relDoc.test_doc == doc
+    
+#     doc.reset()
+    
+#     assert doc.test_rel_docs == []
+#     assert relDoc.test_doc == None

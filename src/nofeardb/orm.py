@@ -4,7 +4,7 @@ Handles entity models
 
 from abc import ABC, abstractmethod
 import uuid
-from .enums import DocumentStatus, RelationshipType
+from .enums import DocumentStatus
 
 
 class Document:
@@ -79,12 +79,24 @@ class RelationshipList(list):
         
     def remove(self, value: Document):
         if value in self:
-            setattr(value, self._back_populates + "_rel", None)
+            if self._back_populates is not None:
+                setattr(value, self._back_populates + "_rel", None)
+                if value.__status__ == DocumentStatus.SYNC:
+                    value.__status__ = DocumentStatus.MOD
+                    
+            if self._owner.__status__ == DocumentStatus.SYNC:
+                self._owner.__status__ = DocumentStatus.MOD
             super(RelationshipList, self).remove(value)
         
     def append(self, value: Document):
         if value not in self:
-            setattr(value, self._back_populates + "_rel", self._owner)
+            if self._back_populates is not None:
+                setattr(value, self._back_populates + "_rel", self._owner)
+                if value.__status__ == DocumentStatus.SYNC:
+                    value.__status__ = DocumentStatus.MOD
+                    
+            if self._owner.__status__ == DocumentStatus.SYNC:
+                self._owner.__status__ = DocumentStatus.MOD
             super(RelationshipList, self).append(value)
                     
 
@@ -116,15 +128,20 @@ class OneToMany(Relationship):
         instance.__dict__[self._name + "_rel"] = l
         self.back_populate(instance)
         
+        if instance.__status__ == DocumentStatus.SYNC:
+            instance.__status__ = DocumentStatus.MOD
+        
     def remove_from_old_rel(self, instance):
-        if self._back_populates is not None:
+        if self._back_populates is not None:        
             for rel in self.get_relation(instance):
                 setattr(rel, self._back_populates + "_rel", None)
     
     def back_populate(self, instance):
-        if self._back_populates is not None:
+        if self._back_populates is not None:     
             for rel in self.get_relation(instance):
                 setattr(rel, self._back_populates + "_rel", instance)
+                if rel.__status__ == DocumentStatus.SYNC:
+                    rel.__status__ = DocumentStatus.MOD
     
 
 class ManyToOne(Relationship):
@@ -147,6 +164,9 @@ class ManyToOne(Relationship):
         self.remove_from_old_rel(instance)
         instance.__dict__[self._name + "_rel"] = value
         self.back_populate(instance)
+        
+        if instance.__status__ == DocumentStatus.SYNC:
+            instance.__status__ = DocumentStatus.MOD
             
     def remove_from_old_rel(self, instance):
         if self._back_populates is not None:
