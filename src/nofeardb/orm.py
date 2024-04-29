@@ -23,6 +23,7 @@ class Document:
 
     def get_document_name(self):
         """get the name by which the document is identified in the database"""
+
         if self.__documentname__ is not None:
             return self.__documentname__
 
@@ -30,11 +31,21 @@ class Document:
 
     def create_snapshot(self):
         """creates a snapshot of the data for restore purposes"""
-        self.__data_snapshot__ = self.__dict__.copy()
+
+        for name, attr in vars(self.__class__).items():
+            if isinstance(attr, Field) or isinstance(attr, Relationship):
+                try:
+                    self.__data_snapshot__[name] = getattr(self, name).copy()
+                except AttributeError:
+                    self.__data_snapshot__[name] = getattr(self, name)
 
     def reset(self):
         """restores the last snapshot"""
-        self.__dict__ = self.__data_snapshot__
+
+        for name, value in self.__data_snapshot__.items():
+            setattr(self, name, value)
+
+        self.__changed_fields__ = []
 
 
 class Relationship(ABC):
@@ -123,6 +134,7 @@ class OneToMany(Relationship):
         return self.get_relation(instance)
 
     def __set__(self, instance: Document, related_docs: List[Document]):
+        print(related_docs)
         self.clear_reverse_relationship(instance)
         l = RelationshipList(related_docs, instance, self._back_populates)
         instance.__dict__[self._name + "_rel"] = l
