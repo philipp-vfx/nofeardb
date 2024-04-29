@@ -3,6 +3,7 @@ Handles entity models
 """
 
 from abc import ABC, abstractmethod
+from typing import List
 import uuid
 from .enums import DocumentStatus
 
@@ -21,15 +22,18 @@ class Document:
         self.__data_snapshot__ = {}
 
     def get_document_name(self):
+        """get the name by which the document is identified in the database"""
         if self.__documentname__ is not None:
             return self.__documentname__
 
         return self.__class__.__name__.lower()
-    
+
     def create_snapshot(self):
+        """creates a snapshot of the data for restore purposes"""
         self.__data_snapshot__ = self.__dict__.copy()
-        
+
     def reset(self):
+        """restores the last snapshot"""
         self.__dict__ = self.__data_snapshot__
 
 
@@ -42,115 +46,111 @@ class Relationship(ABC):
         self._name = None
         self._rel_class_name = class_name
         self._back_populates = back_populates
-        
+
     def __set_name__(self, owner, name):
         self._name = name
-        
+
     @abstractmethod
-    def back_populate(self):
+    def back_populate_reverse_relationship(self, instance):
         """ execute back population on related items """
-    
+
     @abstractmethod
-    def remove_from_old_rel(self):
+    def clear_reverse_relationship(self, instance):
         """ remove back populated properties on related items """
-    
+
+
 class RelationshipList(list):
-    
-    def set_owner(self, instance):
-        self._owner = instance
-        
-    def set_back_populate(self, back_populates):
-        self._back_populates = back_populates
-        
+    """customized list holding one to many relationships."""
+
+    def __init__(self, iterable, relationsip_owner, back_population):
+        super(RelationshipList, self).__init__(iterable)
+        self._relationship_owner = relationsip_owner
+        self._back_populates = back_population
+
     def __setitem__(self, key, value: Document):
         to_replace = self[key]
         setattr(to_replace, self._back_populates + "_rel", None)
-        setattr(value, self._back_populates + "_rel", self._owner)
+        setattr(value, self._back_populates + "_rel", self._relationship_owner)
         super(RelationshipList, self).__setitem__(key, value)
 
     def __delitem__(self, value):
-        raise RuntimeError("del for relationship items no allowed. Use \'remove\' instead")
+        raise RuntimeError(
+            "del for relationship items no allowed. Use \'remove\' instead")
 
     def __add__(self, value):
         raise RuntimeError("concatenation of relationships not allowed")
 
     def __iadd__(self, value):
         raise RuntimeError("concatenation of relationships not allowed")
-        
-    def remove(self, value: Document):
-        if value in self:
+
+    def remove(self, related_doc: Document):
+        if related_doc in self:
             if self._back_populates is not None:
-                setattr(value, self._back_populates + "_rel", None)
-                if value.__status__ == DocumentStatus.SYNC:
-                    value.__status__ = DocumentStatus.MOD
-                    
-            if self._owner.__status__ == DocumentStatus.SYNC:
-                self._owner.__status__ = DocumentStatus.MOD
-            super(RelationshipList, self).remove(value)
-        
-    def append(self, value: Document):
-        if value not in self:
+                setattr(related_doc, self._back_populates + "_rel", None)
+                if related_doc.__status__ == DocumentStatus.SYNC:
+                    related_doc.__status__ = DocumentStatus.MOD
+
+            if self._relationship_owner.__status__ == DocumentStatus.SYNC:
+                self._relationship_owner.__status__ = DocumentStatus.MOD
+            super(RelationshipList, self).remove(related_doc)
+
+    def append(self, related_doc: Document):
+        if related_doc not in self:
             if self._back_populates is not None:
-                setattr(value, self._back_populates + "_rel", self._owner)
-                if value.__status__ == DocumentStatus.SYNC:
-                    value.__status__ = DocumentStatus.MOD
-                    
-            if self._owner.__status__ == DocumentStatus.SYNC:
-                self._owner.__status__ = DocumentStatus.MOD
-            super(RelationshipList, self).append(value)
-                    
+                setattr(related_doc, self._back_populates +
+                        "_rel", self._relationship_owner)
+                if related_doc.__status__ == DocumentStatus.SYNC:
+                    related_doc.__status__ = DocumentStatus.MOD
+
+            if self._relationship_owner.__status__ == DocumentStatus.SYNC:
+                self._relationship_owner.__status__ = DocumentStatus.MOD
+            super(RelationshipList, self).append(related_doc)
+
 
 class OneToMany(Relationship):
-    
-    def __init__(self, class_name, back_populates=None):
-        super(OneToMany, self).__init__(class_name, back_populates)
-        
+    """descriptor for one to many relationships"""
+
     def get_relation(self, instance):
+        """get the relationship from the instance"""
         try:
-            l = instance.__dict__[self._name + "_rel"]
-            l.set_owner = instance
-            return l
+            return instance.__dict__[self._name + "_rel"]
         except KeyError:
-            l = RelationshipList()
-            l.set_owner(instance)
-            l.set_back_populate(self._back_populates)
+            l = RelationshipList([], instance, self._back_populates)
             instance.__dict__[self._name + "_rel"] = l
             return instance.__dict__[self._name + "_rel"]
 
     def __get__(self, instance, owner):
         return self.get_relation(instance)
 
-    def __set__(self, instance, value):
-        self.remove_from_old_rel(instance)
-        l = RelationshipList(value)
-        l.set_owner(instance)
-        l.set_back_populate(self._back_populates)
+    def __set__(self, instance: Document, related_docs: List[Document]):
+        self.clear_reverse_relationship(instance)
+        l = RelationshipList(related_docs, instance, self._back_populates)
         instance.__dict__[self._name + "_rel"] = l
-        self.back_populate(instance)
-        
+        self.back_populate_reverse_relationship(instance)
+
         if instance.__status__ == DocumentStatus.SYNC:
             instance.__status__ = DocumentStatus.MOD
-        
-    def remove_from_old_rel(self, instance):
-        if self._back_populates is not None:        
-            for rel in self.get_relation(instance):
-                setattr(rel, self._back_populates + "_rel", None)
-    
-    def back_populate(self, instance):
-        if self._back_populates is not None:     
-            for rel in self.get_relation(instance):
-                setattr(rel, self._back_populates + "_rel", instance)
-                if rel.__status__ == DocumentStatus.SYNC:
-                    rel.__status__ = DocumentStatus.MOD
-    
+
+    def clear_reverse_relationship(self, instance):
+        if self._back_populates is not None:
+            related_docs = self.get_relation(instance)
+            for related_doc in related_docs:
+                setattr(related_doc, self._back_populates + "_rel", None)
+
+    def back_populate_reverse_relationship(self, instance):
+        if self._back_populates is not None:
+            related_docs = self.get_relation(instance)
+            for related_doc in related_docs:
+                setattr(related_doc, self._back_populates + "_rel", instance)
+                if related_doc.__status__ == DocumentStatus.SYNC:
+                    related_doc.__status__ = DocumentStatus.MOD
+
 
 class ManyToOne(Relationship):
-    
-    def __init__(self, class_name, back_populates=None):
-        super(ManyToOne, self).__init__(class_name, back_populates)
-        self._relation = None
-        
+    """descriptor for many to one relationships"""
+
     def get_relation(self, instance):
+        """get the relationship from the instance"""
         try:
             return instance.__dict__[self._name + "_rel"]
         except KeyError:
@@ -160,25 +160,29 @@ class ManyToOne(Relationship):
     def __get__(self, instance, owner):
         return self.get_relation(instance)
 
-    def __set__(self, instance, value: Document):
-        self.remove_from_old_rel(instance)
-        instance.__dict__[self._name + "_rel"] = value
-        self.back_populate(instance)
-        
+    def __set__(self, instance, related_doc: Document):
+        self.clear_reverse_relationship(instance)
+        instance.__dict__[self._name + "_rel"] = related_doc
+        self.back_populate_reverse_relationship(instance)
+
         if instance.__status__ == DocumentStatus.SYNC:
             instance.__status__ = DocumentStatus.MOD
-            
-    def remove_from_old_rel(self, instance):
+
+    def clear_reverse_relationship(self, instance):
         if self._back_populates is not None:
-            if self.get_relation(instance) is not None:
-                owning = getattr(self.get_relation(instance), self._back_populates)
-                owning.remove(instance)
-    
-    def back_populate(self, instance):
+            related_doc = self.get_relation(instance)
+            if related_doc is not None:
+                owning_relationship = getattr(
+                    related_doc, self._back_populates)
+                owning_relationship.remove(instance)
+
+    def back_populate_reverse_relationship(self, instance):
         if self._back_populates is not None:
-            if self.get_relation(instance) is not None:
-                owning = getattr(self.get_relation(instance), self._back_populates)
-                owning.append(instance)
+            related_doc = self.get_relation(instance)
+            if related_doc is not None:
+                owning_relationship = getattr(
+                    related_doc, self._back_populates)
+                owning_relationship.append(instance)
 
 
 class Field:
@@ -197,26 +201,27 @@ class Field:
     def __get__(self, instance: Document, owner):
         if self._primary_key:
             return instance.__id__
-        
+
         return instance.__dict__[self._name]
 
     def __set__(self, instance: Document, value):
         if instance.__status__ == DocumentStatus.DEL:
-            raise RuntimeError("cannot set data on an already deleted document")
-        
+            raise RuntimeError(
+                "cannot set data on an already deleted document")
+
         if not self._nullable and value is None:
             raise ValueError("cannot set None on non nullable field")
-        
+
         if instance.__status__ == DocumentStatus.SYNC:
             instance.__status__ = DocumentStatus.MOD
-        
+
         if self._primary_key:
             if not isinstance(value, uuid.UUID):
                 raise ValueError("primary key must be of type UUID")
             instance.__id__ = value
-            
+
         if (
-            self._name not in instance.__changed_fields__ 
+            self._name not in instance.__changed_fields__
             and instance.__status__ != DocumentStatus.NEW
         ):
             instance.__changed_fields__.append(self._name)
