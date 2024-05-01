@@ -247,3 +247,77 @@ def test_reset_relationships():
 
     assert doc.test_rel_docs == []
     assert relDoc.test_doc is None
+
+
+def test_many_to_one_added_removed_tracking_unidirectional():
+    class TestDocUni(Document):
+        __documentname__ = "test_doc_uni"
+
+    class RelTestDocUni(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_doc = ManyToOne("TestDocUni")
+
+    doc = TestDocUni()
+    doc2 = TestDocUni()
+    relDoc = RelTestDocUni()
+
+    assert relDoc.__added_relationships__ == {}
+    assert relDoc.__removed_relationships__ == {}
+
+    relDoc.test_doc = doc
+
+    assert relDoc.__added_relationships__ == {'test_doc': [doc]}
+    assert relDoc.__removed_relationships__ == {}
+
+    relDoc.test_doc = None
+
+    assert relDoc.__added_relationships__ == {'test_doc': []}
+    assert relDoc.__removed_relationships__ == {'test_doc': [doc]}
+
+    relDoc.test_doc = doc
+
+    assert relDoc.__added_relationships__ == {'test_doc': [doc]}
+    assert relDoc.__removed_relationships__ == {'test_doc': []}
+
+    relDoc.test_doc = doc2
+
+    assert relDoc.__added_relationships__ == {'test_doc': [doc2]}
+    assert relDoc.__removed_relationships__ == {'test_doc': [doc]}
+
+
+def test_one_to_many_added_removed_tracking_unidirectional():
+    class TestDocUni(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_docs = OneToMany("RelTestDocUni")
+
+    class RelTestDocUni(Document):
+        __documentname__ = "test_doc_uni"
+
+    doc = TestDocUni()
+    relDoc = RelTestDocUni()
+    relDoc2 = RelTestDocUni()
+
+    assert doc.__added_relationships__ == {}
+    assert doc.__removed_relationships__ == {}
+
+    doc.test_docs = [relDoc, relDoc2]
+
+    assert doc.__added_relationships__ == {'test_docs': [relDoc, relDoc2]}
+    assert doc.__removed_relationships__ == {}
+
+    doc.test_docs = []
+
+    assert doc.__added_relationships__ == {'test_docs': []}
+    assert doc.__removed_relationships__ == {'test_docs': [relDoc, relDoc2]}
+
+    doc.test_docs = [relDoc, relDoc2]
+
+    assert doc.__added_relationships__ == {'test_docs': [relDoc, relDoc2]}
+    assert doc.__removed_relationships__ == {'test_docs': []}
+
+    doc.test_docs = [relDoc]
+
+    assert doc.__added_relationships__ == {'test_docs': [relDoc]}
+    assert doc.__removed_relationships__ == {'test_docs': [relDoc2]}
