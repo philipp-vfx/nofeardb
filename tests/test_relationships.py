@@ -321,3 +321,36 @@ def test_one_to_many_added_removed_tracking_unidirectional():
 
     assert doc.__added_relationships__ == {'test_docs': [relDoc]}
     assert doc.__removed_relationships__ == {'test_docs': [relDoc2]}
+
+
+def test_one_to_many_added_removed_tracking_unidirectional_list_operations():
+    class TestDocUni(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_docs = OneToMany("RelTestDocUni")
+
+    class RelTestDocUni(Document):
+        __documentname__ = "test_doc_uni"
+
+    doc = TestDocUni()
+    relDoc = RelTestDocUni()
+    relDoc2 = RelTestDocUni()
+
+    assert doc.__added_relationships__ == {}
+    assert doc.__removed_relationships__ == {}
+
+    doc.test_docs.append(relDoc)
+    assert doc.__added_relationships__ == {'test_docs': [relDoc]}
+    assert doc.__removed_relationships__ == {}
+
+    doc.test_docs.append(relDoc2)
+    assert doc.__added_relationships__ == {'test_docs': [relDoc, relDoc2]}
+    assert doc.__removed_relationships__ == {}
+
+    doc.test_docs.remove(relDoc)
+    assert doc.__added_relationships__ == {'test_docs': [relDoc2]}
+    assert doc.__removed_relationships__ == {'test_docs': [relDoc]}
+
+    doc.test_docs[0] = relDoc
+    assert doc.__added_relationships__ == {'test_docs': [relDoc]}
+    assert doc.__removed_relationships__ == {'test_docs': [relDoc2]}

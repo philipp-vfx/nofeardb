@@ -31,6 +31,34 @@ class Document:
 
         return self.__class__.__name__.lower()
 
+    def set_relationship_added(self, rel_name: str, document: 'Document'):
+        """Set a relationship in added state"""
+        if rel_name in self.__removed_relationships__:
+            if isinstance(self.__removed_relationships__[rel_name], list):
+                if document in self.__removed_relationships__[rel_name]:
+                    self.__removed_relationships__[rel_name].remove(document)
+
+        if rel_name not in self.__added_relationships__:
+            self.__added_relationships__[rel_name] = []
+
+        if document is not None:
+            if document not in self.__added_relationships__[rel_name]:
+                self.__added_relationships__[rel_name].append(document)
+
+    def set_relationship_removed(self, rel_name: str, document: 'Document'):
+        """Set a relationsip in removed state"""
+        if rel_name in self.__added_relationships__:
+            if isinstance(self.__added_relationships__[rel_name], list):
+                if document in self.__added_relationships__[rel_name]:
+                    self.__added_relationships__[rel_name].remove(document)
+
+        if rel_name not in self.__removed_relationships__:
+            self.__removed_relationships__[rel_name] = []
+
+        if document is not None:
+            if document not in self.__removed_relationships__[rel_name]:
+                self.__removed_relationships__[rel_name].append(document)
+
     def create_snapshot(self):
         """creates a snapshot of the data for restore purposes"""
 
@@ -75,15 +103,24 @@ class Relationship(ABC):
 class RelationshipList(list):
     """customized list holding one to many relationships."""
 
-    def __init__(self, iterable, relationsip_owner, back_population):
+    def __init__(self, iterable, relationsip_owner: Document, back_population, relationship_name):
         super(RelationshipList, self).__init__(iterable)
         self._relationship_owner = relationsip_owner
         self._back_populates = back_population
+        self._relationship_name = relationship_name
 
     def __setitem__(self, key, value: Document):
         to_replace = self[key]
-        setattr(to_replace, self._back_populates + "_rel", None)
-        setattr(value, self._back_populates + "_rel", self._relationship_owner)
+        self._relationship_owner.set_relationship_removed(
+            self._relationship_name, to_replace)
+
+        if self._back_populates is not None:
+            setattr(to_replace, self._back_populates + "_rel", None)
+            setattr(value, self._back_populates +
+                    "_rel", self._relationship_owner)
+
+        self._relationship_owner.set_relationship_added(
+            self._relationship_name, value)
         super(RelationshipList, self).__setitem__(key, value)
 
     def __delitem__(self, value):
@@ -103,6 +140,8 @@ class RelationshipList(list):
                 if related_doc.__status__ == DocumentStatus.SYNC:
                     related_doc.__status__ = DocumentStatus.MOD
 
+            self._relationship_owner.set_relationship_removed(
+                self._relationship_name, related_doc)
             if self._relationship_owner.__status__ == DocumentStatus.SYNC:
                 self._relationship_owner.__status__ = DocumentStatus.MOD
             super(RelationshipList, self).remove(related_doc)
@@ -115,6 +154,8 @@ class RelationshipList(list):
                 if related_doc.__status__ == DocumentStatus.SYNC:
                     related_doc.__status__ = DocumentStatus.MOD
 
+            self._relationship_owner.set_relationship_added(
+                self._relationship_name, related_doc)
             if self._relationship_owner.__status__ == DocumentStatus.SYNC:
                 self._relationship_owner.__status__ = DocumentStatus.MOD
             super(RelationshipList, self).append(related_doc)
@@ -128,7 +169,8 @@ class OneToMany(Relationship):
         try:
             return instance.__dict__[self._name + "_rel"]
         except KeyError:
-            l = RelationshipList([], instance, self._back_populates)
+            l = RelationshipList(
+                [], instance, self._back_populates, self._name)
             instance.__dict__[self._name + "_rel"] = l
             return instance.__dict__[self._name + "_rel"]
 
@@ -143,7 +185,8 @@ class OneToMany(Relationship):
             if prev_instances is not None:
                 self.set_relationships_removed(instance, prev_instances)
 
-        l = RelationshipList(related_docs, instance, self._back_populates)
+        l = RelationshipList(related_docs, instance,
+                             self._back_populates, self._name)
         instance.__dict__[self._name + "_rel"] = l
 
         self.set_relationships_added(instance, related_docs)
@@ -153,41 +196,17 @@ class OneToMany(Relationship):
         if instance.__status__ == DocumentStatus.SYNC:
             instance.__status__ = DocumentStatus.MOD
 
-    def set_relationships_removed(self, instance, removed_documents: List[Document]):
+    def set_relationships_removed(self, instance: Document, removed_documents: List[Document]):
         """track a relationship to another document as removed"""
 
         for removed_document in removed_documents:
-            if self._name in instance.__dict__['__added_relationships__']:
-                if isinstance(instance.__dict__['__added_relationships__'][self._name], list):
-                    if removed_document in instance.__dict__['__added_relationships__'][self._name]:
-                        instance.__dict__['__added_relationships__'][self._name].remove(
-                            removed_document)
+            instance.set_relationship_removed(self._name, removed_document)
 
-            if self._name not in instance.__dict__['__removed_relationships__']:
-                instance.__dict__['__removed_relationships__'][self._name] = []
-
-            if removed_document is not None:
-                if removed_document not in instance.__dict__['__removed_relationships__'][self._name]:
-                    instance.__dict__['__removed_relationships__'][self._name].append(
-                        removed_document)
-
-    def set_relationships_added(self, instance, added_documents: List[Document]):
+    def set_relationships_added(self, instance: Document, added_documents: List[Document]):
         """track a relationship to another document as added"""
 
         for added_document in added_documents:
-            if self._name in instance.__dict__['__removed_relationships__']:
-                if isinstance(instance.__dict__['__removed_relationships__'][self._name], list):
-                    if added_document in instance.__dict__['__removed_relationships__'][self._name]:
-                        instance.__dict__['__removed_relationships__'][self._name].remove(
-                            added_document)
-
-            if self._name not in instance.__dict__['__added_relationships__']:
-                instance.__dict__['__added_relationships__'][self._name] = []
-
-            if added_document is not None:
-                if added_document not in instance.__dict__['__added_relationships__'][self._name]:
-                    instance.__dict__['__added_relationships__'][self._name].append(
-                        added_document)
+            instance.set_relationship_added(self._name, added_document)
 
     def clear_reverse_relationship(self, instance):
         if self._back_populates is not None:
@@ -218,52 +237,18 @@ class ManyToOne(Relationship):
     def __get__(self, instance, owner):
         return self.get_relation(instance)
 
-    def __set__(self, instance, related_doc: Document):
+    def __set__(self, instance: Document, related_doc: Document):
         self.clear_reverse_relationship(instance)
         if hasattr(instance, self._name + "_rel"):
             prev_instance = getattr(instance, self._name + "_rel")
             if prev_instance is not None:
-                self.set_relationship_removed(instance, prev_instance)
+                instance.set_relationship_removed(self._name, prev_instance)
         instance.__dict__[self._name + "_rel"] = related_doc
-        self.set_relationship_added(instance, related_doc)
+        instance.set_relationship_added(self._name, related_doc)
         self.back_populate_reverse_relationship(instance)
 
         if instance.__status__ == DocumentStatus.SYNC:
             instance.__status__ = DocumentStatus.MOD
-
-    def set_relationship_removed(self, instance, removed_document: Document):
-        """track a relationship to another document as removed"""
-
-        if self._name in instance.__dict__['__added_relationships__']:
-            if isinstance(instance.__dict__['__added_relationships__'][self._name], list):
-                if removed_document in instance.__dict__['__added_relationships__'][self._name]:
-                    instance.__dict__['__added_relationships__'][self._name].remove(
-                        removed_document)
-
-        if self._name not in instance.__dict__['__removed_relationships__']:
-            instance.__dict__['__removed_relationships__'][self._name] = []
-
-        if removed_document is not None:
-            if removed_document not in instance.__dict__['__removed_relationships__'][self._name]:
-                instance.__dict__['__removed_relationships__'][self._name].append(
-                    removed_document)
-
-    def set_relationship_added(self, instance, added_document: Document):
-        """track a relationship to another document as added"""
-
-        if self._name in instance.__dict__['__removed_relationships__']:
-            if isinstance(instance.__dict__['__removed_relationships__'][self._name], list):
-                if added_document in instance.__dict__['__removed_relationships__'][self._name]:
-                    instance.__dict__['__removed_relationships__'][self._name].remove(
-                        added_document)
-
-        if self._name not in instance.__dict__['__added_relationships__']:
-            instance.__dict__['__added_relationships__'][self._name] = []
-
-        if added_document is not None:
-            if added_document not in instance.__dict__['__added_relationships__'][self._name]:
-                instance.__dict__['__added_relationships__'][self._name].append(
-                    added_document)
 
     def clear_reverse_relationship(self, instance):
         if self._back_populates is not None:
