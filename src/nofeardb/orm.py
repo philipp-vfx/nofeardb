@@ -100,11 +100,11 @@ class Relationship(ABC):
         """ remove back populated properties on related items """
 
 
-class RelationshipList(list):
+class OneToManyList(list):
     """customized list holding one to many relationships."""
 
     def __init__(self, iterable, relationsip_owner: Document, back_population, relationship_name):
-        super(RelationshipList, self).__init__(iterable)
+        super(OneToManyList, self).__init__(iterable)
         self._relationship_owner = relationsip_owner
         self._back_populates = back_population
         self._relationship_name = relationship_name
@@ -125,7 +125,7 @@ class RelationshipList(list):
 
         self._relationship_owner.set_relationship_added(
             self._relationship_name, value)
-        super(RelationshipList, self).__setitem__(key, value)
+        super(OneToManyList, self).__setitem__(key, value)
 
     def __delitem__(self, value):
         raise RuntimeError(
@@ -150,7 +150,7 @@ class RelationshipList(list):
                 self._relationship_name, related_doc)
             if self._relationship_owner.__status__ == DocumentStatus.SYNC:
                 self._relationship_owner.__status__ = DocumentStatus.MOD
-            super(RelationshipList, self).remove(related_doc)
+            super(OneToManyList, self).remove(related_doc)
 
     def append(self, related_doc: Document):
         if related_doc not in self:
@@ -166,7 +166,104 @@ class RelationshipList(list):
                 self._relationship_name, related_doc)
             if self._relationship_owner.__status__ == DocumentStatus.SYNC:
                 self._relationship_owner.__status__ = DocumentStatus.MOD
-            super(RelationshipList, self).append(related_doc)
+            super(OneToManyList, self).append(related_doc)
+
+
+class ManyToManyList(list):
+    """customized list holding many to many relationships."""
+
+    def __init__(self, iterable, relationsip_owner: Document, back_population, relationship_name):
+        super(ManyToManyList, self).__init__(iterable)
+        self._relationship_owner = relationsip_owner
+        self._back_populates = back_population
+        self._relationship_name = relationship_name
+
+    def __setitem__(self, key, value: Document):
+        to_replace = self[key]
+        self._relationship_owner.set_relationship_removed(
+            self._relationship_name, to_replace)
+
+        if self._back_populates is not None:
+
+            self.__backpopulate_remove(to_replace)
+            to_replace.set_relationship_removed(
+                self._back_populates, self._relationship_owner)
+
+            self.__backpopulate_append(value)
+            value.set_relationship_added(
+                self._back_populates, self._relationship_owner)
+
+        self._relationship_owner.set_relationship_added(
+            self._relationship_name, value)
+
+        super(ManyToManyList, self).__setitem__(key, value)
+
+    def __delitem__(self, value):
+        raise RuntimeError(
+            "del for relationship items no allowed. Use \'remove\' instead")
+
+    def __add__(self, value):
+        raise RuntimeError("concatenation of relationships not allowed")
+
+    def __iadd__(self, value):
+        raise RuntimeError("concatenation of relationships not allowed")
+
+    def __backpopulate_remove(self, related_doc):
+        inverse_relationship = getattr(
+            related_doc, self._back_populates)
+
+        if self._relationship_owner in inverse_relationship:
+            inverse_relationship.remove_without_back_propagation(
+                self._relationship_owner)
+
+    def __backpopulate_append(self, related_doc):
+        inverse_relationship = getattr(
+            related_doc, self._back_populates)
+        if self._relationship_owner not in inverse_relationship:
+            inverse_relationship.append_without_back_propagation(
+                self._relationship_owner)
+
+    def remove_without_back_propagation(self, related_doc: Document):
+        if related_doc in self:
+            super(ManyToManyList, self).remove(related_doc)
+
+            self._relationship_owner.set_relationship_removed(
+                self._relationship_name, related_doc)
+            if self._relationship_owner.__status__ == DocumentStatus.SYNC:
+                self._relationship_owner.__status__ = DocumentStatus.MOD
+
+    def append_without_back_propagation(self, related_doc: Document):
+        if related_doc not in self:
+            super(ManyToManyList, self).append(related_doc)
+
+            self._relationship_owner.set_relationship_added(
+                self._relationship_name, related_doc)
+            if self._relationship_owner.__status__ == DocumentStatus.SYNC:
+                self._relationship_owner.__status__ = DocumentStatus.MOD
+
+    def remove(self, related_doc: Document):
+        if related_doc in self:
+            self.remove_without_back_propagation(related_doc)
+
+            # BACK PROPAGATION
+            if self._back_populates is not None:
+                self.__backpopulate_remove(related_doc)
+                related_doc.set_relationship_removed(
+                    self._back_populates, self._relationship_owner)
+                if related_doc.__status__ == DocumentStatus.SYNC:
+                    related_doc.__status__ = DocumentStatus.MOD
+
+    def append(self, related_doc: Document):
+        if related_doc not in self:
+            self.append_without_back_propagation(related_doc)
+
+            # BACK PROPAGATION
+            if self._back_populates is not None:
+                self.__backpopulate_append(related_doc)
+                related_doc.set_relationship_added(
+                    self._back_populates, self._relationship_owner)
+                if related_doc.__status__ == DocumentStatus.SYNC:
+                    related_doc.__status__ = DocumentStatus.MOD
 
 
 class OneToMany(Relationship):
@@ -177,7 +274,7 @@ class OneToMany(Relationship):
         try:
             return instance.__dict__[self._name + "_rel"]
         except KeyError:
-            l = RelationshipList(
+            l = OneToManyList(
                 [], instance, self._back_populates, self._name)
             instance.__dict__[self._name + "_rel"] = l
             return instance.__dict__[self._name + "_rel"]
@@ -193,8 +290,8 @@ class OneToMany(Relationship):
             if prev_instances is not None:
                 self.set_relationships_removed(instance, prev_instances)
 
-        l = RelationshipList(related_docs, instance,
-                             self._back_populates, self._name)
+        l = OneToManyList(related_docs, instance,
+                          self._back_populates, self._name)
         instance.__dict__[self._name + "_rel"] = l
 
         self.set_relationships_added(instance, related_docs)
@@ -275,6 +372,74 @@ class ManyToOne(Relationship):
                 owning_relationship = getattr(
                     related_doc, self._back_populates)
                 owning_relationship.append(instance)
+
+
+class ManyToMany(Relationship):
+    """descriptor for many to many relationships"""
+
+    def get_relation(self, instance) -> List[Document]:
+        """get the relationship from the instance"""
+        try:
+            return instance.__dict__[self._name + "_rel"]
+        except KeyError:
+            l = ManyToManyList(
+                [], instance, self._back_populates, self._name)
+            instance.__dict__[self._name + "_rel"] = l
+            return instance.__dict__[self._name + "_rel"]
+
+    def __get__(self, instance, owner):
+        return self.get_relation(instance)
+
+    def __set__(self, instance: Document, related_docs: List[Document]):
+        self.clear_reverse_relationship(instance)
+
+        if hasattr(instance, self._name + "_rel"):
+            prev_instances = getattr(instance, self._name + "_rel")
+            if prev_instances is not None:
+                self.set_relationships_removed(instance, prev_instances)
+
+        l = ManyToManyList(related_docs, instance,
+                           self._back_populates, self._name)
+        instance.__dict__[self._name + "_rel"] = l
+
+        self.set_relationships_added(instance, related_docs)
+
+        self.back_populate_reverse_relationship(instance)
+
+        if instance.__status__ == DocumentStatus.SYNC:
+            instance.__status__ = DocumentStatus.MOD
+
+    def set_relationships_removed(self, instance: Document, removed_documents: List[Document]):
+        """track a relationship to another document as removed"""
+
+        for removed_document in removed_documents:
+            instance.set_relationship_removed(self._name, removed_document)
+
+    def set_relationships_added(self, instance: Document, added_documents: List[Document]):
+        """track a relationship to another document as added"""
+
+        for added_document in added_documents:
+            instance.set_relationship_added(self._name, added_document)
+
+    def clear_reverse_relationship(self, instance):
+        if self._back_populates is not None:
+            related_docs = self.get_relation(instance)
+            for related_doc in related_docs:
+                inverse_relationship = getattr(
+                    related_doc, self._back_populates)
+                related_doc.set_relationship_removed(self._name, instance)
+                inverse_relationship.remove_without_back_propagation(instance)
+
+    def back_populate_reverse_relationship(self, instance):
+        if self._back_populates is not None:
+            related_docs = self.get_relation(instance)
+            for related_doc in related_docs:
+                inverse_relationship = getattr(
+                    related_doc, self._back_populates)
+                inverse_relationship.append_without_back_propagation(instance)
+                related_doc.set_relationship_added(self._name, instance)
+                if related_doc.__status__ == DocumentStatus.SYNC:
+                    related_doc.__status__ = DocumentStatus.MOD
 
 
 class Field:
