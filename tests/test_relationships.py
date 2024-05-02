@@ -354,3 +354,101 @@ def test_one_to_many_added_removed_tracking_unidirectional_list_operations():
     doc.test_docs[0] = relDoc
     assert doc.__added_relationships__ == {'test_docs': [relDoc]}
     assert doc.__removed_relationships__ == {'test_docs': [relDoc2]}
+
+
+def test_many_to_one_added_removed_tracking_bidirectional():
+    class TestDocBi(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_docs = OneToMany("RelTestDocBi", back_populates="test_doc")
+
+    class RelTestDocBi(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_doc = ManyToOne("TestDocBi", back_populates="test_docs")
+
+    doc = TestDocBi()
+    relDoc = RelTestDocBi()
+    relDoc2 = RelTestDocBi()
+
+    relDoc.test_doc = doc
+    assert doc.__added_relationships__ == {'test_docs': [relDoc]}
+    assert doc.__removed_relationships__ == {}
+
+    relDoc2.test_doc = doc
+    assert doc.__added_relationships__ == {'test_docs': [relDoc, relDoc2]}
+    assert doc.__removed_relationships__ == {}
+
+    relDoc.test_doc = None
+    assert doc.__added_relationships__ == {'test_docs': [relDoc2]}
+    assert doc.__removed_relationships__ == {'test_docs': [relDoc]}
+
+
+def test_one_to_many_added_removed_tracking_bidirectional():
+    class TestDocBi(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_docs = OneToMany("RelTestDocBi", back_populates="test_doc")
+
+    class RelTestDocBi(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_doc = ManyToOne("TestDocBi", back_populates="test_docs")
+
+    doc = TestDocBi()
+    relDoc = RelTestDocBi()
+    relDoc2 = RelTestDocBi()
+
+    doc.test_docs = [relDoc]
+    assert relDoc.__added_relationships__ == {'test_docs': [doc]}
+    assert doc.__removed_relationships__ == {}
+
+    doc.test_docs = [relDoc, relDoc2]
+    assert relDoc.__added_relationships__ == {'test_docs': [doc]}
+    assert relDoc2.__added_relationships__ == {'test_docs': [doc]}
+    assert relDoc.__removed_relationships__ == {'test_docs': []}
+    assert relDoc2.__removed_relationships__ == {}
+
+    doc.test_docs = []
+    assert relDoc.__added_relationships__ == {'test_docs': []}
+    assert relDoc.__removed_relationships__ == {'test_docs': [doc]}
+    assert relDoc2.__added_relationships__ == {'test_docs': []}
+    assert relDoc2.__removed_relationships__ == {'test_docs': [doc]}
+
+
+def test_one_to_many_added_removed_tracking_bidirectional_list_operations():
+    class TestDocBi(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_docs = OneToMany("RelTestDocBi", back_populates="test_doc")
+
+    class RelTestDocBi(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_doc = ManyToOne("TestDocBi", back_populates="test_docs")
+
+    doc = TestDocBi()
+    relDoc = RelTestDocBi()
+    relDoc2 = RelTestDocBi()
+
+    doc.test_docs.append(relDoc)
+    assert relDoc.__added_relationships__ == {'test_doc': [doc]}
+    assert doc.__removed_relationships__ == {}
+
+    doc.test_docs.append(relDoc2)
+    assert relDoc.__added_relationships__ == {'test_doc': [doc]}
+    assert relDoc2.__added_relationships__ == {'test_doc': [doc]}
+    assert relDoc.__removed_relationships__ == {}
+    assert relDoc2.__removed_relationships__ == {}
+
+    doc.test_docs.remove(relDoc)
+    assert relDoc.__added_relationships__ == {'test_doc': []}
+    assert relDoc.__removed_relationships__ == {'test_doc': [doc]}
+    assert relDoc2.__added_relationships__ == {'test_doc': [doc]}
+    assert relDoc2.__removed_relationships__ == {}
+
+    doc.test_docs[0] = relDoc
+    assert relDoc.__added_relationships__ == {'test_doc': [doc]}
+    assert relDoc.__removed_relationships__ == {'test_doc': []}
+    assert relDoc2.__added_relationships__ == {'test_doc': []}
+    assert relDoc2.__removed_relationships__ == {'test_doc': [doc]}

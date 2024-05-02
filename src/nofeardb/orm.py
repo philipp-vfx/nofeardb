@@ -116,8 +116,12 @@ class RelationshipList(list):
 
         if self._back_populates is not None:
             setattr(to_replace, self._back_populates + "_rel", None)
+            to_replace.set_relationship_removed(
+                self._back_populates, self._relationship_owner)
             setattr(value, self._back_populates +
                     "_rel", self._relationship_owner)
+            value.set_relationship_added(
+                self._back_populates, self._relationship_owner)
 
         self._relationship_owner.set_relationship_added(
             self._relationship_name, value)
@@ -137,6 +141,8 @@ class RelationshipList(list):
         if related_doc in self:
             if self._back_populates is not None:
                 setattr(related_doc, self._back_populates + "_rel", None)
+                related_doc.set_relationship_removed(
+                    self._back_populates, self._relationship_owner)
                 if related_doc.__status__ == DocumentStatus.SYNC:
                     related_doc.__status__ = DocumentStatus.MOD
 
@@ -151,6 +157,8 @@ class RelationshipList(list):
             if self._back_populates is not None:
                 setattr(related_doc, self._back_populates +
                         "_rel", self._relationship_owner)
+                related_doc.set_relationship_added(
+                    self._back_populates, self._relationship_owner)
                 if related_doc.__status__ == DocumentStatus.SYNC:
                     related_doc.__status__ = DocumentStatus.MOD
 
@@ -164,7 +172,7 @@ class RelationshipList(list):
 class OneToMany(Relationship):
     """descriptor for one to many relationships"""
 
-    def get_relation(self, instance):
+    def get_relation(self, instance) -> List[Document]:
         """get the relationship from the instance"""
         try:
             return instance.__dict__[self._name + "_rel"]
@@ -213,12 +221,14 @@ class OneToMany(Relationship):
             related_docs = self.get_relation(instance)
             for related_doc in related_docs:
                 setattr(related_doc, self._back_populates + "_rel", None)
+                related_doc.set_relationship_removed(self._name, instance)
 
     def back_populate_reverse_relationship(self, instance):
         if self._back_populates is not None:
             related_docs = self.get_relation(instance)
             for related_doc in related_docs:
                 setattr(related_doc, self._back_populates + "_rel", instance)
+                related_doc.set_relationship_added(self._name, instance)
                 if related_doc.__status__ == DocumentStatus.SYNC:
                     related_doc.__status__ = DocumentStatus.MOD
 
