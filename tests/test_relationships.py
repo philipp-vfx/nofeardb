@@ -147,12 +147,17 @@ def test_bidirectional_many_to_one_unallowed_operations():
     with pytest.raises(RuntimeError):
         del doc.test_rel_docs[0]
 
+    with pytest.raises(RuntimeError):
+        doc.test_rel_docs.extend([relDoc2])
+
 
 def test_bidirectional_many_to_one_status_update():
     doc = TestDoc()
     doc.__status__ = DocumentStatus.SYNC
     relDoc = TestRelDoc()
     relDoc.__status__ = DocumentStatus.SYNC
+    relDoc2 = TestRelDoc()
+    relDoc2.__status__ = DocumentStatus.SYNC
 
     doc.test_rel_docs.append(relDoc)
     assert doc.__status__ == DocumentStatus.MOD
@@ -171,6 +176,16 @@ def test_bidirectional_many_to_one_status_update():
     doc.test_rel_docs = [relDoc]
     assert doc.__status__ == DocumentStatus.MOD
     assert relDoc.__status__ == DocumentStatus.MOD
+
+    doc.__status__ = DocumentStatus.SYNC
+    relDoc.__status__ = DocumentStatus.SYNC
+    relDoc2.__status__ = DocumentStatus.SYNC
+
+    doc.test_rel_docs[0] = relDoc2
+
+    assert doc.__status__ == DocumentStatus.MOD
+    assert relDoc.__status__ == DocumentStatus.MOD
+    assert relDoc2.__status__ == DocumentStatus.MOD
 
 
 def test_bidirectional_one_to_many_status_update():

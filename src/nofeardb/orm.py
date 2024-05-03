@@ -123,8 +123,18 @@ class OneToManyList(list):
             value.set_relationship_added(
                 self._back_populates, self._relationship_owner)
 
+            if to_replace.__status__ == DocumentStatus.SYNC:
+                to_replace.__status__ = DocumentStatus.MOD
+
         self._relationship_owner.set_relationship_added(
             self._relationship_name, value)
+
+        if value.__status__ == DocumentStatus.SYNC:
+            value.__status__ = DocumentStatus.MOD
+
+        if self._relationship_owner.__status__ == DocumentStatus.SYNC:
+            self._relationship_owner.__status__ = DocumentStatus.MOD
+
         super(OneToManyList, self).__setitem__(key, value)
 
     def __delitem__(self, value):
@@ -136,6 +146,9 @@ class OneToManyList(list):
 
     def __iadd__(self, value):
         raise RuntimeError("concatenation of relationships not allowed")
+
+    def extend(self, value):
+        raise RuntimeError("extending of relationships not allowed")
 
     def remove(self, related_doc: Document):
         if related_doc in self:
@@ -179,6 +192,9 @@ class ManyToManyList(list):
         self._relationship_name = relationship_name
 
     def __setitem__(self, key, value: Document):
+        if self._relationship_owner.__status__ == DocumentStatus.DEL:
+            raise RuntimeError("deleted object cannot be modified")
+
         to_replace = self[key]
         self._relationship_owner.set_relationship_removed(
             self._relationship_name, to_replace)
@@ -196,6 +212,9 @@ class ManyToManyList(list):
         self._relationship_owner.set_relationship_added(
             self._relationship_name, value)
 
+        if self._relationship_owner.__status__ == DocumentStatus.SYNC:
+            self._relationship_owner.__status__ = DocumentStatus.MOD
+
         super(ManyToManyList, self).__setitem__(key, value)
 
     def __delitem__(self, value):
@@ -207,6 +226,9 @@ class ManyToManyList(list):
 
     def __iadd__(self, value):
         raise RuntimeError("concatenation of relationships not allowed")
+
+    def extend(self, value):
+        raise RuntimeError("extending of relationships not allowed")
 
     def __backpopulate_remove(self, related_doc):
         inverse_relationship = getattr(
@@ -242,6 +264,9 @@ class ManyToManyList(list):
                 self._relationship_owner.__status__ = DocumentStatus.MOD
 
     def remove(self, related_doc: Document):
+        if self._relationship_owner.__status__ == DocumentStatus.DEL:
+            raise RuntimeError("deleted object cannot be modified")
+
         if related_doc in self:
             self.remove_without_back_propagation(related_doc)
 
@@ -250,10 +275,11 @@ class ManyToManyList(list):
                 self.__backpopulate_remove(related_doc)
                 related_doc.set_relationship_removed(
                     self._back_populates, self._relationship_owner)
-                if related_doc.__status__ == DocumentStatus.SYNC:
-                    related_doc.__status__ = DocumentStatus.MOD
 
     def append(self, related_doc: Document):
+        if self._relationship_owner.__status__ == DocumentStatus.DEL:
+            raise RuntimeError("deleted object cannot be modified")
+
         if related_doc not in self:
             self.append_without_back_propagation(related_doc)
 
@@ -262,8 +288,6 @@ class ManyToManyList(list):
                 self.__backpopulate_append(related_doc)
                 related_doc.set_relationship_added(
                     self._back_populates, self._relationship_owner)
-                if related_doc.__status__ == DocumentStatus.SYNC:
-                    related_doc.__status__ = DocumentStatus.MOD
 
 
 class OneToMany(Relationship):
@@ -391,6 +415,9 @@ class ManyToMany(Relationship):
         return self.get_relation(instance)
 
     def __set__(self, instance: Document, related_docs: List[Document]):
+        if instance.__status__ == DocumentStatus.DEL:
+            raise RuntimeError("deleted object cannot be modified")
+
         self.clear_reverse_relationship(instance)
 
         if hasattr(instance, self._name + "_rel"):
@@ -438,8 +465,6 @@ class ManyToMany(Relationship):
                     related_doc, self._back_populates)
                 inverse_relationship.append_without_back_propagation(instance)
                 related_doc.set_relationship_added(self._name, instance)
-                if related_doc.__status__ == DocumentStatus.SYNC:
-                    related_doc.__status__ = DocumentStatus.MOD
 
 
 class Field:
