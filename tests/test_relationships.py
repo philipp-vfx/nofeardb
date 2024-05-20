@@ -467,3 +467,32 @@ def test_one_to_many_added_removed_tracking_bidirectional_list_operations():
     assert relDoc.__removed_relationships__ == {'test_doc': []}
     assert relDoc2.__added_relationships__ == {'test_doc': []}
     assert relDoc2.__removed_relationships__ == {'test_doc': [doc]}
+
+
+def test_adding_document_with_same_id_twice():
+    class TestDocTwice(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_docs = OneToMany("RelTestDocBi", back_populates="test_doc")
+
+    class RelTestDocTwice(Document):
+        __documentname__ = "test_doc_uni"
+
+        test_doc = ManyToOne("TestDocBi", back_populates="test_docs")
+
+    doc = TestDocTwice()
+    relDoc1 = RelTestDocTwice()
+    relDoc2 = RelTestDocTwice()
+    relDoc3 = RelTestDocTwice()
+    relDoc2.__id__ = relDoc1.__id__
+
+    with pytest.raises(RuntimeError):
+        doc.test_docs = [relDoc1, relDoc2]
+
+    doc.test_docs.append(relDoc1)
+    with pytest.raises(RuntimeError):
+        doc.test_docs.append(relDoc2)
+
+    doc.test_docs.append(relDoc3)
+    with pytest.raises(RuntimeError):
+        doc.test_docs[1] = relDoc2

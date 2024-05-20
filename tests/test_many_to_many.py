@@ -199,3 +199,108 @@ def test_deleted_status_update():
 
     with pytest.raises(RuntimeError):
         doc.test_rel_docs[0] = relDoc2
+
+
+def test_many_to_many_added_removed_tracking_bidirectional():
+
+    doc = TestDoc()
+    doc2 = TestDoc()
+    relDoc = TestRelDoc()
+
+    assert relDoc.__added_relationships__ == {}
+    assert relDoc.__removed_relationships__ == {}
+
+    relDoc.test_docs = [doc]
+
+    assert relDoc.__added_relationships__ == {'test_docs': [doc]}
+    assert relDoc.__removed_relationships__ == {}
+    assert doc.__added_relationships__ == {'test_rel_docs': [relDoc]}
+    assert doc.__removed_relationships__ == {}
+
+    relDoc.test_docs = []
+
+    assert relDoc.__added_relationships__ == {'test_docs': []}
+    assert relDoc.__removed_relationships__ == {'test_docs': [doc]}
+    assert doc.__added_relationships__ == {'test_rel_docs': []}
+    assert doc.__removed_relationships__ == {'test_rel_docs': [relDoc]}
+
+    doc2.test_rel_docs = [relDoc]
+
+    assert relDoc.__added_relationships__ == {'test_docs': [doc2]}
+    assert relDoc.__removed_relationships__ == {'test_docs': [doc]}
+    assert doc2.__added_relationships__ == {'test_rel_docs': [relDoc]}
+    assert doc2.__removed_relationships__ == {}
+
+    doc2.test_rel_docs = []
+
+    assert relDoc.__added_relationships__ == {'test_docs': []}
+    assert relDoc.__removed_relationships__ == {'test_docs': [doc, doc2]}
+    assert doc2.__added_relationships__ == {'test_rel_docs': []}
+    assert doc2.__removed_relationships__ == {'test_rel_docs': [relDoc]}
+
+
+def test_many_to_many_added_removed_tracking_bidirectional_list_ops():
+
+    doc = TestDoc()
+    doc2 = TestDoc()
+    relDoc = TestRelDoc()
+
+    assert relDoc.__added_relationships__ == {}
+    assert relDoc.__removed_relationships__ == {}
+
+    relDoc.test_docs.append(doc)
+
+    assert relDoc.__added_relationships__ == {'test_docs': [doc]}
+    assert relDoc.__removed_relationships__ == {}
+    assert doc.__added_relationships__ == {'test_rel_docs': [relDoc]}
+    assert doc.__removed_relationships__ == {}
+
+    relDoc.test_docs.remove(doc)
+
+    assert relDoc.__added_relationships__ == {'test_docs': []}
+    assert relDoc.__removed_relationships__ == {'test_docs': [doc]}
+    assert doc.__added_relationships__ == {'test_rel_docs': []}
+    assert doc.__removed_relationships__ == {'test_rel_docs': [relDoc]}
+
+    doc2.test_rel_docs.append(relDoc)
+
+    assert relDoc.__added_relationships__ == {'test_docs': [doc2]}
+    assert relDoc.__removed_relationships__ == {'test_docs': [doc]}
+    assert doc2.__added_relationships__ == {'test_rel_docs': [relDoc]}
+    assert doc2.__removed_relationships__ == {}
+
+    doc2.test_rel_docs.remove(relDoc)
+
+    assert relDoc.__added_relationships__ == {'test_docs': []}
+    assert relDoc.__removed_relationships__ == {'test_docs': [doc, doc2]}
+    assert doc2.__added_relationships__ == {'test_rel_docs': []}
+    assert doc2.__removed_relationships__ == {'test_rel_docs': [relDoc]}
+
+    relDoc.test_docs.append(doc)
+    relDoc.test_docs[0] = doc2
+
+    assert relDoc.__added_relationships__ == {'test_docs': [doc2]}
+    assert relDoc.__removed_relationships__ == {'test_docs': [doc]}
+    assert doc.__added_relationships__ == {'test_rel_docs': []}
+    assert doc.__removed_relationships__ == {'test_rel_docs': [relDoc]}
+    assert doc2.__added_relationships__ == {'test_rel_docs': [relDoc]}
+    assert doc2.__removed_relationships__ == {'test_rel_docs': []}
+
+
+def test_adding_document_with_same_id_twice():
+    doc = TestDoc()
+    relDoc1 = TestRelDoc()
+    relDoc2 = TestRelDoc()
+    relDoc3 = TestRelDoc()
+    relDoc2.__id__ = relDoc1.__id__
+
+    with pytest.raises(RuntimeError):
+        doc.test_rel_docs = [relDoc1, relDoc2]
+
+    doc.test_rel_docs.append(relDoc1)
+    with pytest.raises(RuntimeError):
+        doc.test_rel_docs.append(relDoc2)
+
+    doc.test_rel_docs.append(relDoc3)
+    with pytest.raises(RuntimeError):
+        doc.test_rel_docs[1] = relDoc2

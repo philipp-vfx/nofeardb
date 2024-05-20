@@ -110,6 +110,10 @@ class OneToManyList(list):
         self._relationship_name = relationship_name
 
     def __setitem__(self, key, value: Document):
+        if value.__id__ in [doc.__id__ for doc in self]:
+            raise RuntimeError(
+                "cannot add two documents with the same ID " + str(value.__id__))
+
         to_replace = self[key]
         self._relationship_owner.set_relationship_removed(
             self._relationship_name, to_replace)
@@ -167,6 +171,10 @@ class OneToManyList(list):
 
     def append(self, related_doc: Document):
         if related_doc not in self:
+            if related_doc.__id__ in [doc.__id__ for doc in self]:
+                raise RuntimeError(
+                    "cannot add two documents with the same ID " + str(related_doc.__id__))
+
             if self._back_populates is not None:
                 setattr(related_doc, self._back_populates +
                         "_rel", self._relationship_owner)
@@ -194,6 +202,10 @@ class ManyToManyList(list):
     def __setitem__(self, key, value: Document):
         if self._relationship_owner.__status__ == DocumentStatus.DEL:
             raise RuntimeError("deleted object cannot be modified")
+
+        if value.__id__ in [doc.__id__ for doc in self]:
+            raise RuntimeError(
+                "cannot add two documents with the same ID " + str(value.__id__))
 
         to_replace = self[key]
         self._relationship_owner.set_relationship_removed(
@@ -246,6 +258,9 @@ class ManyToManyList(list):
                 self._relationship_owner)
 
     def remove_without_back_propagation(self, related_doc: Document):
+        """
+        Removes an entity from the relationship list without propagating it to the related entity.
+        """
         if related_doc in self:
             super(ManyToManyList, self).remove(related_doc)
 
@@ -255,6 +270,13 @@ class ManyToManyList(list):
                 self._relationship_owner.__status__ = DocumentStatus.MOD
 
     def append_without_back_propagation(self, related_doc: Document):
+        """
+        Appends an entity to the the relationship list without propagating it to the related entity.
+        """
+        if related_doc.__id__ in [doc.__id__ for doc in self]:
+            raise RuntimeError(
+                "cannot add two documents with the same ID " + str(related_doc.__id__))
+
         if related_doc not in self:
             super(ManyToManyList, self).append(related_doc)
 
@@ -308,6 +330,14 @@ class OneToMany(Relationship):
 
     def __set__(self, instance: Document, related_docs: List[Document]):
         self.clear_reverse_relationship(instance)
+
+        doc_ids = []
+        for doc in related_docs:
+            if doc.__id__ in doc_ids:
+                raise RuntimeError(
+                    "cannot add two documents with the same ID " + str(doc.__id__))
+
+            doc_ids.append(doc.__id__)
 
         if hasattr(instance, self._name + "_rel"):
             prev_instances = getattr(instance, self._name + "_rel")
@@ -418,6 +448,14 @@ class ManyToMany(Relationship):
         if instance.__status__ == DocumentStatus.DEL:
             raise RuntimeError("deleted object cannot be modified")
 
+        doc_ids = []
+        for doc in related_docs:
+            if doc.__id__ in doc_ids:
+                raise RuntimeError(
+                    "cannot add two documents with the same ID " + str(doc.__id__))
+
+            doc_ids.append(doc.__id__)
+
         self.clear_reverse_relationship(instance)
 
         if hasattr(instance, self._name + "_rel"):
@@ -454,7 +492,8 @@ class ManyToMany(Relationship):
             for related_doc in related_docs:
                 inverse_relationship = getattr(
                     related_doc, self._back_populates)
-                related_doc.set_relationship_removed(self._name, instance)
+                related_doc.set_relationship_removed(
+                    self._back_populates, instance)
                 inverse_relationship.remove_without_back_propagation(instance)
 
     def back_populate_reverse_relationship(self, instance):
@@ -464,7 +503,8 @@ class ManyToMany(Relationship):
                 inverse_relationship = getattr(
                     related_doc, self._back_populates)
                 inverse_relationship.append_without_back_propagation(instance)
-                related_doc.set_relationship_added(self._name, instance)
+                related_doc.set_relationship_added(
+                    self._back_populates, instance)
 
 
 class Field:
