@@ -5,6 +5,8 @@ Handles entity models
 from abc import ABC, abstractmethod
 from typing import List
 import uuid
+
+from .datatypes import OrmDataType
 from .enums import DocumentStatus
 
 
@@ -512,13 +514,15 @@ class Field:
     Descriptor for a data field in a document
     """
 
-    def __init__(self, primary_key=False, nullable=True):
+    def __init__(self, datatype: OrmDataType, primary_key=False, nullable=True):
         self._name = None
         self._primary_key = primary_key
         self._nullable = nullable
+        self._datatype = datatype
 
     def __set_name__(self, owner, name):
         self._name = name
+        setattr(owner, self._name + "__datatype", self._datatype)
 
     def __get__(self, instance: Document, owner):
         if self._primary_key:

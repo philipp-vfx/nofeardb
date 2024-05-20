@@ -2,6 +2,7 @@
 
 import uuid
 import pytest
+from src.nofeardb.datatypes import Integer, String
 from src.nofeardb.enums import DocumentStatus
 from src.nofeardb.orm import Document, Field
 
@@ -9,8 +10,8 @@ from src.nofeardb.orm import Document, Field
 class TestDoc(Document):
     __documentname__ = "test_doc"
 
-    testfield_1 = Field()
-    testfield_2 = Field()
+    testfield_1 = Field(String)
+    testfield_2 = Field(Integer)
 
 
 def test_get_document_name_set():
@@ -45,7 +46,7 @@ def test_setting_document_id_correct_type():
     generated_id = uuid.uuid4()
 
     class IdTestDoc(Document):
-        id = Field(primary_key=True)
+        id = Field(uuid.UUID, primary_key=True)
 
     doc = IdTestDoc()
     doc.id = generated_id
@@ -60,7 +61,7 @@ def test_setting_document_id_incorrect_type():
     generated_id = "helloworld"
 
     class IdTestDoc(Document):
-        id = Field(primary_key=True)
+        id = Field(uuid.UUID, primary_key=True)
 
     doc = IdTestDoc()
 
@@ -185,8 +186,8 @@ def test_changed_data_fields_sync_model():
 
 def test_setfield_not_nullable():
     class NullableTestDoc(Document):
-        nullable_field = Field()
-        not_nullable_field = Field(nullable=False)
+        nullable_field = Field(Integer)
+        not_nullable_field = Field(Integer, nullable=False)
 
     doc = NullableTestDoc()
     with pytest.raises(ValueError):
@@ -197,9 +198,7 @@ def test_setfield_not_nullable():
     assert doc.nullable_field == None
 
 
-# def test_changed_relationship_fields_new_model():
-#     assert False
-
-
-# def test_changed_relationship_fields_deleted_model():
-#     assert False
+def test_get_field_datatype():
+    doc = TestDoc()
+    assert doc.testfield_1__datatype == String
+    assert doc.testfield_2__datatype == Integer

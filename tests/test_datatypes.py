@@ -1,8 +1,9 @@
 # pylint: skip-file
 
 import pytest
+import uuid
 
-from src.nofeardb.datatypes import Integer, Float, String, DateTime
+from src.nofeardb.datatypes import Integer, Float, String, DateTime, UUID
 from datetime import datetime
 
 
@@ -70,3 +71,16 @@ def test_DateTime():
 
     with pytest.raises(AttributeError):
         DateTime.cast(2)
+
+
+def test_UUID():
+    test = uuid.uuid4()
+    assert UUID.deserialize(str(test)) == test
+    assert UUID.cast(test) == test
+    assert UUID.serialize(test) == str(test)
+
+    with pytest.raises(AttributeError):
+        UUID.serialize(2)
+
+    with pytest.raises(AttributeError):
+        UUID.cast(2)

@@ -1,5 +1,6 @@
 """ORM Datatypes"""
 
+import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 
@@ -21,6 +22,31 @@ class OrmDataType(ABC):
     @abstractmethod
     def deserialize(cls, value: str):
         """deserializes a string to the expected datatype"""
+
+
+class UUID(OrmDataType):
+    """ORM UUID Datatype"""
+
+    @classmethod
+    def cast(cls, value) -> int:
+        if isinstance(value, uuid.UUID):
+            return value
+
+        if isinstance(value, str):
+            return uuid.UUID(value)
+
+        raise AttributeError("Argument must be of type str of uuid.UUID")
+
+    @classmethod
+    def serialize(cls, value: int) -> str:
+        if not isinstance(value, uuid.UUID):
+            raise AttributeError("Argument must be of type uuid.UUID")
+
+        return str(value)
+
+    @classmethod
+    def deserialize(cls, value: str) -> int:
+        return cls.cast(value)
 
 
 class Integer(OrmDataType):
