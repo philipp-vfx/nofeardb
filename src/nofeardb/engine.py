@@ -11,8 +11,8 @@ class StorageEngine:
     """Storage Engine Class"""
 
     def __init__(self, root: str):
-        self.__root = root
-        self.__models = []
+        self._root = root
+        self._models = []
 
     def register_models(self, models: List[type]):
         """
@@ -23,7 +23,7 @@ class StorageEngine:
             if not isinstance(model, Document):
                 raise ValueError(str(model) + " is not of type \'Document\'")
 
-        self.__models = models
+        self._models = models
 
     def create(self, doc: Document):
         """create the document"""
@@ -37,6 +37,6 @@ class StorageEngine:
         """delete the document"""
         pass
 
-    def read(self, doc_type: Document, query_filter: QueryFilter):
+    def read(self, doc_type: Document, query_filter: QueryFilter = None):
         """read the document"""
         pass
