@@ -2,6 +2,8 @@
 Engine Classes
 """
 
+import os
+import json
 from typing import List
 
 from .datatypes import OrmDataType
@@ -117,12 +119,40 @@ class StorageEngine:
                             children.append(getattr(child, name))
             
         return dependencies
+    
+    def get_doc_basepath(self, doc: Document):
+        """get the base file path for the document type"""
+        return os.path.join(self._root, doc.get_document_name())
+    
+    def create_write_json(self, doc: Document):
+        """write the json file initially to the disk"""
+
+        doc_path = os.path.join(self.get_doc_basepath(doc), doc.__id__ + "__" + doc.get_hash() + ".json")
+        
+        json_object = json.dumps(self.create_json(doc), indent=4)
+        with open(doc_path, "w") as outfile:
+            outfile.write(json_object)
+            
+    def update_write_json(self, doc: Document):
+        """updates an existing json file"""
 
     def create(self, doc: Document):
         """create the document"""
         if doc.__status__ is not DocumentStatus.NEW:
             raise RuntimeError("The document is not new. Only new documents can be created")
-
+        
+        doc_base_path = self.get_doc_basepath(doc)
+        existing_ids = [doc_name.split("__")[0] for doc_name in os.listdir(doc_base_path)]
+        if str(doc.__id__) in existing_ids:
+            raise RuntimeError("Document of type <" + doc.__class__ + "> with ID " + str(doc.__id__) + " already existing.")
+        
+        for dep in self.resolve_dependencies(doc):
+            if dep.__status__ == DocumentStatus.NEW:
+                self.create_write_json(dep)
+                
+            if dep.__status__ == DocumentStatus.MOD:
+                self.update_write_json(dep)
+         
     def update(self, doc: Document):
         """update the document"""
         if doc.__status__ is DocumentStatus.NEW:
@@ -130,6 +160,20 @@ class StorageEngine:
         
         if doc.__status__ is DocumentStatus.DEL:
             raise RuntimeError("Deleted documents cannot be updated")
+        
+        doc_base_path = self.get_doc_basepath(doc)
+        existing_ids = [doc_name.split("__")[0] for doc_name in os.listdir(doc_base_path)]
+        if str(doc.__id__) not in existing_ids:
+            raise RuntimeError("Document of type <" + doc.__class__ + "> " + str(doc.__id__) + " not existing.")
+        
+        #TODO: implement locking strategy to avoid concurrent writes
+        
+        for dep in self.resolve_dependencies(doc):
+            if dep.__status__ == DocumentStatus.NEW:
+                self.create_write_json(dep)
+                
+            if dep.__status__ == DocumentStatus.MOD:
+                self.update_write_json(dep)
 
     def delete(self, doc: Document):
         """delete the document"""
