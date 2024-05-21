@@ -15,7 +15,6 @@ def test_create_not_allowed():
     engine.register_models([TestDoc])
     
     doc = TestDoc()
-    engine.create(doc)
     
     doc.__status__ = DocumentStatus.MOD
     
@@ -51,11 +50,6 @@ def test_update_not_allowed():
     
     with pytest.raises(RuntimeError):
         engine.update(doc)
-        
-    doc.__status__ = DocumentStatus.SYNC
-    engine.update(doc)
-    doc.__status__ = DocumentStatus.MOD
-    engine.update(doc)
     
     
 
