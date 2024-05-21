@@ -5,6 +5,7 @@ Handles entity models
 from abc import ABC, abstractmethod
 from typing import List
 import uuid
+import hashlib
 
 from .datatypes import OrmDataType
 from .enums import DocumentStatus
@@ -79,6 +80,27 @@ class Document:
             setattr(self, name, value)
 
         self.__changed_fields__ = []
+        
+    def get_hash(self):
+        m = hashlib.md5()
+        
+        for name, attr in vars(self.__class__).items():
+            try:
+                if isinstance(attr, Field):
+                    m.update(name.encode())
+                    field_type: OrmDataType = getattr(self, name + "__datatype")
+                    m.update(str(field_type.serialize(getattr(self, name))).encode())
+                if isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
+                    m.update(name.encode())
+                    m.update(str([str(doc.__id__) for doc in getattr(self, name)]).encode())
+                if isinstance(attr, ManyToOne):
+                    m.update(name.encode())
+                    if getattr(self, name) is not None:
+                        m.update(str(getattr(self, name).__id__).encode())
+            except KeyError:
+                pass
+                    
+        return str(m.hexdigest())
 
 
 class Relationship(ABC):

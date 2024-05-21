@@ -2,9 +2,9 @@
 
 import uuid
 import pytest
-from src.nofeardb.datatypes import Integer, String
+from src.nofeardb.datatypes import DateTime, Integer, String
 from src.nofeardb.enums import DocumentStatus
-from src.nofeardb.orm import Document, Field
+from src.nofeardb.orm import Document, Field, ManyToMany, ManyToOne, OneToMany
 
 
 class TestDoc(Document):
@@ -202,3 +202,65 @@ def test_get_field_datatype():
     doc = TestDoc()
     assert doc.testfield_1__datatype == String
     assert doc.testfield_2__datatype == Integer
+    
+def test_get_hash_value():
+    class TestDocHash(Document):
+        __documentname__ = "test_doc"
+        
+        field1 = Field(Integer)
+
+        test_rel_docs = OneToMany(
+            "TestRelDoc",
+            back_populates="test_doc"
+        )
+
+
+    class TestRelDocHash(Document):
+            __documentname__ = "rel_test_doc"
+
+            field1 = Field(DateTime)
+            
+            test_doc = ManyToOne(
+                "TestDoc",
+                back_populates="test_rel_docs")
+            
+            many_docs = ManyToMany(
+                "TestRelDoc2",
+                back_populates="many_docs"
+            )
+            
+    class TestRelDoc2Hash(Document):
+        
+            field1 = Field(String)
+            
+            many_docs = ManyToMany(
+                "TestRelDoc",
+                back_populates="many_docs"
+            )
+            
+    doc1 = TestDocHash()
+    assert len(doc1.get_hash()) == 32
+    doc1.field1 = 1
+    hash = doc1.get_hash()
+    doc1.field1 = 2
+    assert doc1.get_hash() != hash
+    doc1.field1 = 1
+    assert doc1.get_hash() == hash
+    
+    reldoc1 = TestRelDocHash()
+    relhash1 = reldoc1.get_hash()
+    doc1.test_rel_docs.append(reldoc1)
+    assert doc1.get_hash() != hash
+    assert reldoc1.get_hash() != relhash1
+    
+    doc1.test_rel_docs.remove(reldoc1)
+    assert doc1.get_hash() == hash
+    
+    reldoc2 = TestRelDoc2Hash()
+    relhash2 = reldoc2.get_hash()
+    reldoc2.many_docs.append(reldoc1)
+    assert reldoc2.get_hash() != relhash2
+    reldoc2.many_docs.remove(reldoc1)
+    assert reldoc2.get_hash() == relhash2
+            
+    

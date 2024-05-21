@@ -350,6 +350,7 @@ def test_resolve_dependencies():
     engine.register_models([TestDoc, TestRelDoc, TestRelDoc2])
     
     doc1 = TestDoc()
+    doc2 = TestDoc()
     reldoc1 = TestRelDoc()
     reldoc2 = TestRelDoc()
     reldoc3 = TestRelDoc2()
@@ -366,6 +367,7 @@ def test_resolve_dependencies():
     assert engine.resolve_dependencies(reldoc1) == [reldoc1, reldoc3, doc1]
     assert engine.resolve_dependencies(reldoc3) == [reldoc3, reldoc1, doc1]
     assert engine.resolve_dependencies(reldoc5) == [reldoc5]
+    assert engine.resolve_dependencies(doc2) == [doc2]
     
 def test_resolve_dependencies_unidirectional():
     class TestDoc(Document):
