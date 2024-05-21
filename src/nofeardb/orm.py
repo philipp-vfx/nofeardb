@@ -16,6 +16,7 @@ class Document:
     """
 
     __documentname__ = None
+    __primary_key_attribute__ = None
 
     def __init__(self):
         self.__id__ = uuid.uuid4()
@@ -374,14 +375,14 @@ class OneToMany(Relationship):
             related_docs = self.get_relation(instance)
             for related_doc in related_docs:
                 setattr(related_doc, self._back_populates + "_rel", None)
-                related_doc.set_relationship_removed(self._name, instance)
+                related_doc.set_relationship_removed(self._back_populates, instance)
 
     def back_populate_reverse_relationship(self, instance):
         if self._back_populates is not None:
             related_docs = self.get_relation(instance)
             for related_doc in related_docs:
                 setattr(related_doc, self._back_populates + "_rel", instance)
-                related_doc.set_relationship_added(self._name, instance)
+                related_doc.set_relationship_added(self._back_populates, instance)
                 if related_doc.__status__ == DocumentStatus.SYNC:
                     related_doc.__status__ = DocumentStatus.MOD
 
@@ -523,6 +524,8 @@ class Field:
     def __set_name__(self, owner, name):
         self._name = name
         setattr(owner, self._name + "__datatype", self._datatype)
+        if self._primary_key:
+            setattr(owner, "__primary_key_attribute__", self._name)
 
     def __get__(self, instance: Document, owner):
         if self._primary_key:

@@ -8,8 +8,9 @@ name = "pypi"
 [dev-packages]
 pytest = "*"
 coverage = "*"
-pylint = "*"
 factory-boy = "*"
+autopep8 = "==2.0.4"
+pylint = "==2.13.9"
 
 [requires]
 python_version = "3.6"

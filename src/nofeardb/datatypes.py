@@ -63,11 +63,11 @@ class Integer(OrmDataType):
         return int(value)
 
     @classmethod
-    def serialize(cls, value: int) -> str:
+    def serialize(cls, value: int) -> int:
         if not isinstance(value, int) and not isinstance(value, float):
             raise AttributeError("Argument must be of type int or float")
 
-        return str(int(value))
+        return int(value)
 
     @classmethod
     def deserialize(cls, value: str) -> int:
@@ -85,11 +85,11 @@ class Float(OrmDataType):
         return float(value)
 
     @classmethod
-    def serialize(cls, value: float) -> str:
+    def serialize(cls, value: float) -> float:
         if not isinstance(value, int) and not isinstance(value, float):
             raise AttributeError("Argument must be of type int or float")
 
-        return str(float(value))
+        return float(value)
 
     @classmethod
     def deserialize(cls, value: str) -> float:

@@ -15,10 +15,10 @@ def test_integer():
     assert Integer.cast(2) == 2
     assert Integer.cast(2.0) == 2
 
-    assert Integer.serialize(2) == "2"
-    assert Integer.serialize(-2) == "-2"
-    assert Integer.serialize(2.0) == "2"
-    assert Integer.serialize(0x12F) == "303"
+    assert Integer.serialize(2) == 2
+    assert Integer.serialize(-2) == -2
+    assert Integer.serialize(2.0) == 2
+    assert Integer.serialize(0x12F) == 303
 
     with pytest.raises(ValueError):
         Integer.cast("hello")
@@ -36,9 +36,9 @@ def test_Float():
     assert Float.cast(2.0) == 2.0
     assert Float.cast(-2.0) == -2.0
 
-    assert Float.serialize(2) == "2.0"
-    assert Float.serialize(2.0) == "2.0"
-    assert Float.serialize(0x12F) == "303.0"
+    assert Float.serialize(2) == 2.0
+    assert Float.serialize(2.0) == 2.0
+    assert Float.serialize(0x12F) == 303.0
 
     with pytest.raises(ValueError):
         Float.cast("hello")
