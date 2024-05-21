@@ -318,5 +318,74 @@ def test_update_json_many_to_one_bidirectional():
     assert engine.update_json(json_copy_doc, doc) == expected_json_doc
     assert engine.update_json(json_copy_rel1, rel1) == expected_json_rel1
     
+def test_resolve_dependencies():
+    class TestDoc(Document):
+        __documentname__ = "test_doc"
+
+        test_rel_docs = OneToMany(
+            "TestRelDoc",
+            back_populates="test_doc"
+        )
+
+
+    class TestRelDoc(Document):
+            __documentname__ = "rel_test_doc"
+
+            test_doc = ManyToOne(
+                "TestDoc",
+                back_populates="test_rel_docs")
+            
+            many_docs = ManyToMany(
+                "TestRelDoc2",
+                back_populates="many_docs"
+            )
+            
+    class TestRelDoc2(Document):
+            many_docs = ManyToMany(
+                "TestRelDoc",
+                back_populates="many_docs"
+            )
+            
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc, TestRelDoc, TestRelDoc2])
     
+    doc1 = TestDoc()
+    reldoc1 = TestRelDoc()
+    reldoc2 = TestRelDoc()
+    reldoc3 = TestRelDoc2()
+    reldoc4 = TestRelDoc2()
+    reldoc5 = TestRelDoc()
     
+    doc1.test_rel_docs = [reldoc1]
+    reldoc1.many_docs = [reldoc3]
+    reldoc2.many_docs = [reldoc4]
+    
+    assert engine.resolve_dependencies(reldoc2) == [reldoc2, reldoc4]
+    assert engine.resolve_dependencies(reldoc4) == [reldoc4, reldoc2]
+    assert engine.resolve_dependencies(doc1) == [doc1, reldoc1, reldoc3]
+    assert engine.resolve_dependencies(reldoc1) == [reldoc1, reldoc3, doc1]
+    assert engine.resolve_dependencies(reldoc3) == [reldoc3, reldoc1, doc1]
+    assert engine.resolve_dependencies(reldoc5) == [reldoc5]
+    
+def test_resolve_dependencies_unidirectional():
+    class TestDoc(Document):
+        __documentname__ = "test_doc"
+
+        test_rel_docs = OneToMany(
+            "TestRelDoc",
+        )
+
+
+    class TestRelDoc(Document):
+            __documentname__ = "rel_test_doc"
+            
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc, TestRelDoc])
+    
+    doc1 = TestDoc()
+    reldoc1 = TestRelDoc()
+    
+    doc1.test_rel_docs.append(reldoc1)
+    
+    assert engine.resolve_dependencies(doc1) == [doc1, reldoc1]
+    assert engine.resolve_dependencies(reldoc1) == [reldoc1]

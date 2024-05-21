@@ -92,6 +92,31 @@ class StorageEngine:
                                 json[name] = None
                 
         return json
+    
+    def resolve_dependencies(self, doc: Document, dependencies: List[Document] = []) -> List[Document]:
+        """creates a stack with depending documents"""
+        
+        dependencies = []
+            
+        children = [doc]
+        
+        while len(children) > 0:
+            child = children.pop()
+            if child not in dependencies:
+                dependencies.append(child)
+                
+            for name, attr in vars(child.__class__).items():                  
+                if isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
+                    for rel in getattr(child, name):
+                        if rel not in children and rel not in dependencies:
+                            children.append(rel)
+                
+                if isinstance(attr, ManyToOne):
+                    if getattr(child, name) is not None:
+                        if getattr(child, name) not in children and getattr(child, name) not in dependencies:
+                            children.append(getattr(child, name))
+            
+        return dependencies
 
     def create(self, doc: Document):
         """create the document"""
