@@ -75,6 +75,44 @@ def test_register_models():
     
     engine.register_models([TestDoc])
     assert engine._models == [TestDoc, TestDoc2]
+    
+def test_createJsonAlreadyExistingId(mocker):
+    import os
+    class TestDoc(Document):
+        pass
+    
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc])
+    
+    doc1 = TestDoc()
+    doc2 = TestDoc()
+    doc2.__id__ = "id2"
+    
+    mocker.patch('os.listdir', return_value=["id1", "id2"])
+    
+    assert engine._check_all_documents_valid([doc1]) == True
+    with pytest.raises(RuntimeError):
+        engine._check_all_documents_valid([doc1, doc2]) == False
+        
+def test_updateJsonNotExistingId(mocker):
+    import os
+    class TestDoc(Document):
+        pass
+    
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc])
+    
+    doc1 = TestDoc()
+    doc1.__status__ = DocumentStatus.MOD
+    doc2 = TestDoc()
+    doc2.__id__ = "id2"
+    doc2.__status__ = DocumentStatus.MOD
+    
+    mocker.patch('os.listdir', return_value=["id1", "id2"])
+    
+    assert engine._check_all_documents_valid([doc2]) == True
+    with pytest.raises(RuntimeError):
+        engine._check_all_documents_valid([doc1, doc2]) == False
 
 def test_create_json_fields():
     class TestDoc(Document):

@@ -56,7 +56,7 @@ class StorageEngine:
         return json
 
     def update_json(self, json: dict, doc: Document) -> dict:
-        """updates a the json by modified fields of an object"""
+        """updates the json by modified fields of an object"""
         
         for name, attr in vars(doc.__class__).items():
             if name in doc.__changed_fields__:
@@ -124,6 +124,34 @@ class StorageEngine:
         """get the base file path for the document type"""
         return os.path.join(self._root, doc.get_document_name())
     
+    def _get_document_with_id_existing(self, doc: Document):
+        """Checks wether a document with the same ID already exists."""
+        doc_base_path = self.get_doc_basepath(doc)
+        existing_ids = [doc_name.split("__")[0] for doc_name in os.listdir(doc_base_path)]
+        return str(doc.__id__) in existing_ids
+    
+    def _check_all_documents_valid(self, docs: List[Document]):
+        """
+        Checks wether all documents can be created or updated (no id collision, no locking etc.).
+        If one document fails the check, a RuntimeError is raised.
+        """
+        for doc in docs:
+            if doc.__status__ == DocumentStatus.NEW:
+                if self._get_document_with_id_existing(doc):
+                    raise RuntimeError(
+                        "Document " 
+                        + str(doc) 
+                        + " is marked as new, but an document with the same ID is already existing.")
+            if doc.__status__ == DocumentStatus.MOD:
+                if not self._get_document_with_id_existing(doc):
+                    raise RuntimeError(
+                        "The document " 
+                        + str(doc) 
+                        + " is marked as modified, but no document with the id "
+                        + str(doc.__id__) + " exists.")
+            
+        return True
+    
     def create_write_json(self, doc: Document):
         """write the json file initially to the disk"""
 
@@ -141,17 +169,14 @@ class StorageEngine:
         if doc.__status__ is not DocumentStatus.NEW:
             raise RuntimeError("The document is not new. Only new documents can be created")
         
-        doc_base_path = self.get_doc_basepath(doc)
-        existing_ids = [doc_name.split("__")[0] for doc_name in os.listdir(doc_base_path)]
-        if str(doc.__id__) in existing_ids:
-            raise RuntimeError("Document of type <" + doc.__class__ + "> with ID " + str(doc.__id__) + " already existing.")
-        
-        for dep in self.resolve_dependencies(doc):
-            if dep.__status__ == DocumentStatus.NEW:
-                self.create_write_json(dep)
-                
-            if dep.__status__ == DocumentStatus.MOD:
-                self.update_write_json(dep)
+        dependencies = self.resolve_dependencies(doc)
+        if self._check_all_documents_valid(dependencies):
+            for dep in dependencies:
+                if dep.__status__ == DocumentStatus.NEW:
+                    self.create_write_json(dep)
+                    
+                if dep.__status__ == DocumentStatus.MOD:
+                    self.update_write_json(dep)
          
     def update(self, doc: Document):
         """update the document"""
@@ -161,19 +186,16 @@ class StorageEngine:
         if doc.__status__ is DocumentStatus.DEL:
             raise RuntimeError("Deleted documents cannot be updated")
         
-        doc_base_path = self.get_doc_basepath(doc)
-        existing_ids = [doc_name.split("__")[0] for doc_name in os.listdir(doc_base_path)]
-        if str(doc.__id__) not in existing_ids:
-            raise RuntimeError("Document of type <" + doc.__class__ + "> " + str(doc.__id__) + " not existing.")
-        
         #TODO: implement locking strategy to avoid concurrent writes
         
-        for dep in self.resolve_dependencies(doc):
-            if dep.__status__ == DocumentStatus.NEW:
-                self.create_write_json(dep)
-                
-            if dep.__status__ == DocumentStatus.MOD:
-                self.update_write_json(dep)
+        dependencies = self.resolve_dependencies(doc)
+        if self._check_all_documents_valid(dependencies):
+            for dep in dependencies:
+                if dep.__status__ == DocumentStatus.NEW:
+                    self.create_write_json(dep)
+                    
+                if dep.__status__ == DocumentStatus.MOD:
+                    self.update_write_json(dep)
 
     def delete(self, doc: Document):
         """delete the document"""

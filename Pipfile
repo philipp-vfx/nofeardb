@@ -11,6 +11,7 @@ coverage = "*"
 factory-boy = "*"
 autopep8 = "==2.0.4"
 pylint = "==2.13.9"
+pytest-mock = "*"
 
 [requires]
 python_version = "3.6"
