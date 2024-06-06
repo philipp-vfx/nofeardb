@@ -1,0 +1,4 @@
+
+
+class DocumentLockException(Exception):
+    pass

@@ -4,7 +4,11 @@ Engine Classes
 
 import os
 import json
+import uuid
 from typing import List
+from datetime import datetime
+
+from .exceptions import DocumentLockException
 
 from .datatypes import OrmDataType
 from .enums import DocumentStatus
@@ -202,3 +206,60 @@ class StorageEngine:
 
     def read(self, doc_type: Document, query_filter: QueryFilter = None):
         """read the document"""
+        
+        
+class DocumentLock:
+    
+    def __init__(self, storage_engine: StorageEngine, document: Document, expiration: int = 60):
+        self.__lock_id = uuid.uuid4()
+        self.__document = document
+        self.__engine = storage_engine
+        self.__lock_path = os.path.join(
+            self.__engine.get_doc_basepath(self.__document), 
+            self.__document.__id__ + ".lock"
+            )
+        self.__dateformat = '%Y-%m-%d %H:%M:%S'
+        self.__expiration = expiration
+        
+    def _is_lock_expired(self):
+        if os.path.exists(self.__lock_path):
+            try:
+                with open(self.__lock_path, "r") as lock_file:
+                    lines = lock_file.readlines()
+                    creation_date = datetime.strptime(lines[1], self.__dateformat)
+                    return (datetime.now()-creation_date).total_seconds() > self.__expiration
+            except IndexError:
+                return True
+            
+        return True
+    
+    def _is_owner(self):
+        if os.path.exists(self.__lock_path):
+            try:
+                with open(self.__lock_path, "r") as lock_file:
+                    lines = lock_file.readlines()
+                    id = lines[0]
+                    return id == str(self.__lock_id)
+            except IndexError:
+                return True
+            
+        return True
+        
+    def lock(self):
+        """locks a document"""
+        if os.path.exists(self.__lock_path):
+            if not self._is_lock_expired():
+                raise DocumentLockException()
+            
+        with open(self.__lock_path, "a") as lock_file:
+            lock_file.writelines(
+                [self.__lock_id],
+                datetime.now().strftime(self.__dateformat)
+            )
+        
+    def release(self):
+        """releases a document"""
+        
+    def isLocked(self) -> bool:
+        """returns wether a document is currently locked"""
+        return False
