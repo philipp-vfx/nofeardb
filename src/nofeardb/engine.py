@@ -211,55 +211,65 @@ class StorageEngine:
 class DocumentLock:
     
     def __init__(self, storage_engine: StorageEngine, document: Document, expiration: int = 60):
-        self.__lock_id = uuid.uuid4()
+        self._lock_id = uuid.uuid4()
         self.__document = document
         self.__engine = storage_engine
         self.__lock_path = os.path.join(
             self.__engine.get_doc_basepath(self.__document), 
-            self.__document.__id__ + ".lock"
+            str(self.__document.__id__) + ".lock"
             )
         self.__dateformat = '%Y-%m-%d %H:%M:%S'
         self.__expiration = expiration
         
     def _is_lock_expired(self):
-        if os.path.exists(self.__lock_path):
-            try:
-                with open(self.__lock_path, "r") as lock_file:
-                    lines = lock_file.readlines()
-                    creation_date = datetime.strptime(lines[1], self.__dateformat)
-                    return (datetime.now()-creation_date).total_seconds() > self.__expiration
-            except IndexError:
-                return True
-            
-        return True
+        try:
+            with open(self.__lock_path, "r") as lock_file:
+                lines = lock_file.readlines()
+                creation_date = datetime.strptime(lines[1], self.__dateformat)
+                return (datetime.now()-creation_date).total_seconds() > self.__expiration
+        except IndexError:
+            return True
+        except ValueError:
+            return True
     
     def _is_owner(self):
+        try:
+            with open(self.__lock_path, "r") as lock_file:
+                lines = lock_file.readlines()
+                id = lines[0].strip()
+                return id == str(self._lock_id)
+        except IndexError:
+            return False
+        
+    def _cleanup_old_lock(self):
         if os.path.exists(self.__lock_path):
-            try:
-                with open(self.__lock_path, "r") as lock_file:
-                    lines = lock_file.readlines()
-                    id = lines[0]
-                    return id == str(self.__lock_id)
-            except IndexError:
-                return True
-            
-        return True
+            os.remove(self.__lock_path)
         
     def lock(self):
         """locks a document"""
-        if os.path.exists(self.__lock_path):
-            if not self._is_lock_expired():
-                raise DocumentLockException()
+        if self.isLocked():
+            raise DocumentLockException("Document is already locked.")
+        
+        self._cleanup_old_lock()
             
         with open(self.__lock_path, "a") as lock_file:
             lock_file.writelines(
-                [self.__lock_id],
-                datetime.now().strftime(self.__dateformat)
+                [self._lock_id,
+                datetime.now().strftime(self.__dateformat)]
             )
         
     def release(self):
-        """releases a document"""
+        """releases a document lock"""
+        if os.path.exists(self.__lock_path):
+            if self._is_owner() or self._is_lock_expired():
+                os.remove(self.__lock_path)
+            else:
+                raise DocumentLockException("Cannot release a lock that is hold by someone else.")
         
     def isLocked(self) -> bool:
         """returns wether a document is currently locked"""
+        if os.path.exists(self.__lock_path):
+            if not self._is_lock_expired():
+                return True
+            
         return False
