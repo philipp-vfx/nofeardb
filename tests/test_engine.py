@@ -90,9 +90,9 @@ def test_createJsonAlreadyExistingId(mocker):
     
     mocker.patch('os.listdir', return_value=["id1", "id2"])
     
-    assert engine._check_all_documents_valid([doc1]) == True
+    assert engine._check_all_documents_can_be_written([doc1]) == True
     with pytest.raises(RuntimeError):
-        engine._check_all_documents_valid([doc1, doc2]) == False
+        engine._check_all_documents_can_be_written([doc1, doc2]) == False
         
 def test_updateJsonNotExistingId(mocker):
     import os
@@ -110,9 +110,9 @@ def test_updateJsonNotExistingId(mocker):
     
     mocker.patch('os.listdir', return_value=["id1", "id2"])
     
-    assert engine._check_all_documents_valid([doc2]) == True
+    assert engine._check_all_documents_can_be_written([doc2]) == True
     with pytest.raises(RuntimeError):
-        engine._check_all_documents_valid([doc1, doc2]) == False
+        engine._check_all_documents_can_be_written([doc1, doc2]) == False
 
 def test_create_json_fields():
     class TestDoc(Document):

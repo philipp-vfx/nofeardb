@@ -133,10 +133,11 @@ class StorageEngine:
         doc_base_path = self.get_doc_basepath(doc)
         existing_ids = [doc_name.split("__")[0] for doc_name in os.listdir(doc_base_path)]
         return str(doc.__id__) in existing_ids
+            
     
-    def _check_all_documents_valid(self, docs: List[Document]):
+    def _check_all_documents_can_be_written(self, docs: List[Document]):
         """
-        Checks wether all documents can be created or updated (no id collision, no locking etc.).
+        Checks wether all documents can be created or updated (no id collision etc.).
         If one document fails the check, a RuntimeError is raised.
         """
         for doc in docs:
@@ -156,17 +157,62 @@ class StorageEngine:
             
         return True
     
-    def create_write_json(self, doc: Document):
-        """write the json file initially to the disk"""
-
-        doc_path = os.path.join(self.get_doc_basepath(doc), doc.__id__ + "__" + doc.get_hash() + ".json")
-        
-        json_object = json.dumps(self.create_json(doc), indent=4)
-        with open(doc_path, "w") as outfile:
-            outfile.write(json_object)
+    def _lock_docs(self, docs: List[Document]) -> List['DocumentLock']:
+        locks: List['DocumentLock'] = []
+        try:
+            for doc in docs:
+                lock = DocumentLock(self, doc, expiration=10)
+                lock.lock()
+        except DocumentLockException as e:
+            self._unlock_docs(locks) 
+            raise DocumentLockException from e
+                
+        return locks
+    
+    def _unlock_docs(self, locks: List['DocumentLock']):
+        for lock in locks:
+            try:
+                lock.release()
+            except DocumentLockException:
+                pass
+    
+    def _get_existing_document_file_name(self, doc: Document):
+        """get the filename of the document if it is alreday persisted to disk"""
+        doc_base_path = self.get_doc_basepath(doc)
+        for file in os.listdir(doc_base_path):
+            if "__" in file:
+                if file.split("__")[0] == str(doc.__id__) and os.path.splitext(file)[1] != '.tmp':
+                    return os.path.join(doc_base_path, file)
+                
+        return None
+    
+    def _read_document_from_disk(self, doc_path):
+        if doc_path is not None:
+            with open(doc_path) as f:
+                return json.load(f)
             
-    def update_write_json(self, doc: Document):
-        """updates an existing json file"""
+        return None
+    
+    def write_json(self, doc: Document):
+        """writes the document data to disk"""
+        previous_file = self._get_existing_document_file_name(doc)
+        previous_data = self._read_document_from_disk(previous_file)
+        data_to_write = None
+        if previous_data is not None:
+            data_to_write = self.update_json(previous_data, doc)
+        else:
+            data_to_write = self.create_json(doc)
+            
+        doc_path = os.path.join(self.get_doc_basepath(doc), doc.__id__ + "__" + doc.get_hash() + ".json")
+        doc_temp_path = doc_path + ".tmp"
+            
+        with open(doc_temp_path, 'w') as f:
+            json.dump(data_to_write, f)
+            
+        if previous_file is not None:
+            os.remove(previous_file)
+            
+        os.rename(doc_temp_path, doc_path)
 
     def create(self, doc: Document):
         """create the document"""
@@ -174,13 +220,16 @@ class StorageEngine:
             raise RuntimeError("The document is not new. Only new documents can be created")
         
         dependencies = self.resolve_dependencies(doc)
-        if self._check_all_documents_valid(dependencies):
+        if self._check_all_documents_can_be_written(dependencies):
+            locks = self._lock_docs(dependencies)
             for dep in dependencies:
-                if dep.__status__ == DocumentStatus.NEW:
-                    self.create_write_json(dep)
+                if (
+                    dep.__status__ == DocumentStatus.NEW
+                    or dep.__status__ == DocumentStatus.MOD
+                ):
+                    self.write_json(dep)
                     
-                if dep.__status__ == DocumentStatus.MOD:
-                    self.update_write_json(dep)
+            self._unlock_docs(locks)
          
     def update(self, doc: Document):
         """update the document"""
@@ -190,16 +239,17 @@ class StorageEngine:
         if doc.__status__ is DocumentStatus.DEL:
             raise RuntimeError("Deleted documents cannot be updated")
         
-        #TODO: implement locking strategy to avoid concurrent writes
-        
         dependencies = self.resolve_dependencies(doc)
-        if self._check_all_documents_valid(dependencies):
+        if self._check_all_documents_can_be_written(dependencies):
+            locks = self._lock_docs(dependencies)
             for dep in dependencies:
-                if dep.__status__ == DocumentStatus.NEW:
-                    self.create_write_json(dep)
+                if (
+                    dep.__status__ == DocumentStatus.NEW
+                    or dep.__status__ == DocumentStatus.MOD
+                ):
+                    self.write_json(dep)
                     
-                if dep.__status__ == DocumentStatus.MOD:
-                    self.update_write_json(dep)
+            self._unlock_docs(locks)
 
     def delete(self, doc: Document):
         """delete the document"""
