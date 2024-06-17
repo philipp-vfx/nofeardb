@@ -173,8 +173,10 @@ class StorageEngine:
         locks: List['DocumentLock'] = []
         try:
             for doc in docs:
-                lock = DocumentLock(self, doc, expiration=10)
-                lock.lock()
+                if (doc.__status__ != DocumentStatus.SYNC):
+                    lock = DocumentLock(self, doc, expiration=10)
+                    lock.lock()
+                    locks.append(lock)
         except DocumentLockException as e:
             self._unlock_docs(locks)
             raise DocumentLockException from e
@@ -189,7 +191,7 @@ class StorageEngine:
                 pass
 
     def _get_existing_document_file_name(self, doc: Document):
-        """get the filename of the document if it is alreday persisted to disk"""
+        """get the filename of the document if it is already persisted to disk"""
         doc_base_path = self.get_doc_basepath(doc)
         for file in os.listdir(doc_base_path):
             if "__" in file:
@@ -207,25 +209,26 @@ class StorageEngine:
 
     def write_json(self, doc: Document):
         """writes the document data to disk"""
-        previous_file = self._get_existing_document_file_name(doc)
-        previous_data = self._read_document_from_disk(previous_file)
-        data_to_write = None
-        if previous_data is not None:
-            data_to_write = self.update_json(previous_data, doc)
-        else:
-            data_to_write = self.create_json(doc)
+        if (doc.__status__ != DocumentStatus.SYNC):
+            previous_file = self._get_existing_document_file_name(doc)
+            previous_data = self._read_document_from_disk(previous_file)
+            data_to_write = None
+            if previous_data is not None:
+                data_to_write = self.update_json(previous_data, doc)
+            else:
+                data_to_write = self.create_json(doc)
 
-        doc_path = os.path.join(self.get_doc_basepath(
-            doc), doc.__id__ + "__" + doc.get_hash() + ".json")
-        doc_temp_path = doc_path + ".tmp"
+            doc_path = os.path.join(self.get_doc_basepath(
+                doc), str(doc.__id__) + "__" + doc.get_hash() + ".json")
+            doc_temp_path = doc_path + ".tmp"
 
-        with open(doc_temp_path, 'w', encoding="utf-8") as f:
-            json.dump(data_to_write, f)
+            with open(doc_temp_path, 'w', encoding="utf-8") as f:
+                json.dump(data_to_write, f)
 
-        if previous_file is not None:
-            os.remove(previous_file)
+            if previous_file is not None:
+                os.remove(previous_file)
 
-        os.rename(doc_temp_path, doc_path)
+            os.rename(doc_temp_path, doc_path)
 
     def create(self, doc: Document):
         """create the document"""
