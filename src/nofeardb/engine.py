@@ -12,9 +12,9 @@ from datetime import datetime
 
 from .exceptions import DocumentLockException
 
-from .datatypes import OrmDataType
+from .datatypes import OrmDataType, UUID
 from .enums import DocumentStatus
-from .orm import Document, Field, ManyToMany, ManyToOne, OneToMany
+from .orm import Document, Field, ManyToMany, ManyToOne, OneToMany, Relationship
 from .filter import QueryFilter
 
 
@@ -173,7 +173,7 @@ class StorageEngine:
         locks: List['DocumentLock'] = []
         try:
             for doc in docs:
-                if (doc.__status__ != DocumentStatus.SYNC):
+                if doc.__status__ != DocumentStatus.SYNC:
                     lock = DocumentLock(self, doc, expiration=10)
                     lock.lock()
                     locks.append(lock)
@@ -209,7 +209,7 @@ class StorageEngine:
 
     def write_json(self, doc: Document):
         """writes the document data to disk"""
-        if (doc.__status__ != DocumentStatus.SYNC):
+        if doc.__status__ != DocumentStatus.SYNC:
             previous_file = self._get_existing_document_file_name(doc)
             previous_data = self._read_document_from_disk(previous_file)
             data_to_write = None
@@ -272,8 +272,47 @@ class StorageEngine:
     def delete(self, doc: Document):
         """delete the document"""
 
-    def read(self, doc_type: Document, query_filter: QueryFilter = None):
-        """read the document"""
+    def _fill_document_with_data(self, doc: Document, data: dict):
+        for name, attr in vars(doc.__class__).items():
+            value = None
+            try:
+                value = data[name]
+            except KeyError:
+                pass
+            if isinstance(attr, Field):
+                if value is not None:
+                    setattr(doc, name, value)
+
+            elif isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
+                # empty objects of relationship class are created and will be loaded when they are accessed.
+                # Relationship is set for all ids, that are not already in the relationship (already loaded)
+                if value is not None:
+                    pass
+            elif isinstance(attr, ManyToOne):
+                if value is not None:
+                    pass
+
+    def read(self, doc_type: type, query_filter: QueryFilter = None) -> List[Document]:
+        """read the documents of the specified type"""
+        base_path = self.get_doc_basepath(doc_type)
+        document_jsons = os.listdir(base_path)
+        documents = []
+        for document in document_jsons:
+            data = self._read_document_from_disk(
+                os.path.join(base_path, document))
+            doc = doc_type()
+
+            try:
+                value = UUID.cast(data["id"])
+                setattr(doc, "__id__", value)
+            except KeyError:
+                pass
+
+            self._fill_document_with_data(doc, data)
+
+            documents.append(doc)
+
+        return documents
 
 
 class DocumentLock:

@@ -9,7 +9,7 @@ from src.nofeardb.exceptions import DocumentLockException
 from src.nofeardb.enums import DocumentStatus
 from src.nofeardb.engine import DocumentLock, StorageEngine
 from src.nofeardb.datatypes import UUID, DateTime, Float, Integer, String
-from src.nofeardb.orm import Document, Field, ManyToMany, ManyToOne, OneToMany
+from src.nofeardb.orm import Document, Field, ManyToMany, ManyToOne, OneToMany, Relationship
 
 DATEFORMAT = '%Y-%m-%d %H:%M:%S'
 
@@ -654,3 +654,87 @@ def test_create_and_update_doc(mocker):
     engine.update(doc)
 
     assert patched_write.call_count == 2
+
+
+def test_read_all_documents_of_type(mocker):
+    class TestDoc(Document):
+
+        attr1 = Field(Integer)
+        attr2 = Field(String)
+
+    doc = TestDoc()
+    doc.attr1 = 38
+    doc.attr2 = "hello"
+
+    mocker.patch.object(
+        StorageEngine, '_read_document_from_disk', return_value={"id": str(doc.__id__), "attr1": "38", "attr2": "hello"})
+    mocker.patch('os.listdir', return_value=["first_document"])
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc])
+
+    docs = engine.read(TestDoc)
+    read_doc = docs[0]
+    assert read_doc.__id__ == doc.__id__
+    assert read_doc.attr1 == doc.attr1
+    assert read_doc.attr2 == doc.attr2
+    assert read_doc != doc
+
+
+def test_read_all_documents_of_type_custom_id(mocker):
+    class TestDoc(Document):
+
+        attr1 = Field(UUID, primary_key=True)
+        attr2 = Field(String)
+
+    doc = TestDoc()
+
+    id = uuid.uuid4()
+    doc.attr1 = id
+    doc.attr2 = "hello"
+
+    mocker.patch.object(
+        StorageEngine, '_read_document_from_disk', return_value={"attr1": str(id), "attr2": "hello"})
+    mocker.patch('os.listdir', return_value=["first_document"])
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc])
+
+    docs = engine.read(TestDoc)
+    read_doc = docs[0]
+    assert read_doc.__id__ == id
+    assert read_doc.attr1 == id
+    assert read_doc.attr2 == doc.attr2
+    assert read_doc != doc
+
+
+def test_read_all_documents_relationships(mocker):
+    class TestDoc(Document):
+
+        rel = ManyToOne("RelDoc", back_populates="rel")
+
+    class RelDoc(Document):
+        rel = OneToMany("TestDoc", back_populates="rel")
+
+    doc = TestDoc()
+    rel = RelDoc()
+
+    doc.rel = rel
+
+    mocker.patch.object(
+        StorageEngine, '_read_document_from_disk', return_value={"rel": str(rel.__id__)})
+    mocker.patch('os.listdir', return_value=["first_document"])
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc])
+
+    docs = engine.read(TestDoc)
+    read_doc = docs[0]
+    assert read_doc.rel == str(rel.__id__)
+
+    mocker.patch.object(
+        StorageEngine, '_read_document_from_disk', return_value={"rel": str(doc.__id__)})
+
+    docs = engine.read(RelDoc)
+    read_doc = docs[0]
+    assert read_doc.rel == [str(doc.__id__)]

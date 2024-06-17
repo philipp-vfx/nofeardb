@@ -27,13 +27,14 @@ class Document:
         self.__removed_relationships__ = {}
         self.__data_snapshot__ = {}
 
-    def get_document_name(self):
+    @classmethod
+    def get_document_name(cls):
         """get the name by which the document is identified in the database"""
 
-        if self.__documentname__ is not None:
-            return self.__documentname__
+        if cls.__documentname__ is not None:
+            return cls.__documentname__
 
-        return self.__class__.__name__.lower()
+        return cls.__class__.__name__.lower()
 
     def set_relationship_added(self, rel_name: str, document: 'Document'):
         """Set a relationship in added state"""
@@ -80,26 +81,29 @@ class Document:
             setattr(self, name, value)
 
         self.__changed_fields__ = []
-        
+
     def get_hash(self):
         m = hashlib.md5()
-        
+
         for name, attr in vars(self.__class__).items():
             try:
                 if isinstance(attr, Field):
                     m.update(name.encode())
-                    field_type: OrmDataType = getattr(self, name + "__datatype")
-                    m.update(str(field_type.serialize(getattr(self, name))).encode())
+                    field_type: OrmDataType = getattr(
+                        self, name + "__datatype")
+                    m.update(str(field_type.serialize(
+                        getattr(self, name))).encode())
                 if isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
                     m.update(name.encode())
-                    m.update(str([str(doc.__id__) for doc in getattr(self, name)]).encode())
+                    m.update(str([str(doc.__id__)
+                             for doc in getattr(self, name)]).encode())
                 if isinstance(attr, ManyToOne):
                     m.update(name.encode())
                     if getattr(self, name) is not None:
                         m.update(str(getattr(self, name).__id__).encode())
             except KeyError:
                 pass
-                    
+
         return str(m.hexdigest())
 
 
@@ -397,14 +401,16 @@ class OneToMany(Relationship):
             related_docs = self.get_relation(instance)
             for related_doc in related_docs:
                 setattr(related_doc, self._back_populates + "_rel", None)
-                related_doc.set_relationship_removed(self._back_populates, instance)
+                related_doc.set_relationship_removed(
+                    self._back_populates, instance)
 
     def back_populate_reverse_relationship(self, instance):
         if self._back_populates is not None:
             related_docs = self.get_relation(instance)
             for related_doc in related_docs:
                 setattr(related_doc, self._back_populates + "_rel", instance)
-                related_doc.set_relationship_added(self._back_populates, instance)
+                related_doc.set_relationship_added(
+                    self._back_populates, instance)
                 if related_doc.__status__ == DocumentStatus.SYNC:
                     related_doc.__status__ = DocumentStatus.MOD
 
@@ -567,9 +573,10 @@ class Field:
             instance.__status__ = DocumentStatus.MOD
 
         if self._primary_key:
-            if not isinstance(value, uuid.UUID):
+            key = self._datatype.cast(value)
+            if not isinstance(key, uuid.UUID):
                 raise ValueError("primary key must be of type UUID")
-            instance.__id__ = value
+            instance.__id__ = key
 
         if (
             self._name not in instance.__changed_fields__
@@ -577,4 +584,4 @@ class Field:
         ):
             instance.__changed_fields__.append(self._name)
 
-        instance.__dict__[self._name] = value
+        instance.__dict__[self._name] = self._datatype.cast(value)
