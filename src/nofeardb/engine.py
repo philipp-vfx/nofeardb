@@ -300,6 +300,7 @@ class StorageEngine:
                         rel_docs.append(rel_doc)
                         
                     if len(rel_docs) > 0:
+                        # TODO: already loaded documents should not be replaced by this operation 
                         if isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
                             setattr(doc, name, rel_docs)
                         elif isinstance(attr, ManyToOne):
@@ -309,8 +310,9 @@ class StorageEngine:
                     rel_doc.__status__ = DocumentStatus.LAZY
                     rel_doc.__added_relationships__ = {}
                     rel_doc.__removed_relationships__ = {}
-                    doc.__added_relationships__ = {}
-                    doc.__removed_relationships__ = {}
+                    
+                doc.__added_relationships__ = {}
+                doc.__removed_relationships__ = {}
 
     def read(self, doc_type: type, query_filter: QueryFilter = None) -> List[Document]:
         """read the documents of the specified type"""
