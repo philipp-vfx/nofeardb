@@ -34,7 +34,7 @@ class Document:
         if cls.__documentname__ is not None:
             return cls.__documentname__
 
-        return cls.__class__.__name__.lower()
+        return cls.__name__.lower()
 
     def set_relationship_added(self, rel_name: str, document: 'Document'):
         """Set a relationship in added state"""
@@ -583,5 +583,8 @@ class Field:
             and instance.__status__ != DocumentStatus.NEW
         ):
             instance.__changed_fields__.append(self._name)
+            
+        if value is not None:
+            value = self._datatype.cast(value)
 
-        instance.__dict__[self._name] = self._datatype.cast(value)
+        instance.__dict__[self._name] = value

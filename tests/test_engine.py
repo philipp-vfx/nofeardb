@@ -722,19 +722,42 @@ def test_read_all_documents_relationships(mocker):
     doc.rel = rel
 
     mocker.patch.object(
-        StorageEngine, '_read_document_from_disk', return_value={"rel": str(rel.__id__)})
+        StorageEngine, '_read_document_from_disk', return_value={"rel": [str(rel.__id__)]})
+    mocker.patch('os.listdir', return_value=["first_document"])
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc, RelDoc])
+
+    docs = engine.read(TestDoc)
+    read_doc = docs[0]
+    assert read_doc.rel.__id__ == rel.__id__
+    assert read_doc.__status__ == DocumentStatus.SYNC
+    assert read_doc.rel.__status__ == DocumentStatus.LAZY
+    assert read_doc.__added_relationships__ == {}
+
+    mocker.patch.object(
+        StorageEngine, '_read_document_from_disk', return_value={"rel": [str(doc.__id__)]})
+
+    docs = engine.read(RelDoc)
+    read_doc = docs[0]
+    assert read_doc.rel[0].__id__ == doc.__id__
+    assert read_doc.__status__ == DocumentStatus.SYNC
+    assert read_doc.rel[0].__status__ == DocumentStatus.LAZY
+    assert read_doc.__added_relationships__ == {}
+    
+def test_load_relation_unregistered_doctype(mocker):
+    class TestDoc(Document):
+
+        rel = ManyToOne("NoneExistingDoc", back_populates="rel")
+
+    doc = TestDoc()
+
+    mocker.patch.object(
+        StorageEngine, '_read_document_from_disk', return_value={"rel": [str(uuid.uuid4())]})
     mocker.patch('os.listdir', return_value=["first_document"])
 
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc])
 
-    docs = engine.read(TestDoc)
-    read_doc = docs[0]
-    assert read_doc.rel == str(rel.__id__)
-
-    mocker.patch.object(
-        StorageEngine, '_read_document_from_disk', return_value={"rel": str(doc.__id__)})
-
-    docs = engine.read(RelDoc)
-    read_doc = docs[0]
-    assert read_doc.rel == [str(doc.__id__)]
+    with pytest.raises(RuntimeError):
+        engine.read(TestDoc)

@@ -2,7 +2,7 @@
 
 import uuid
 import pytest
-from src.nofeardb.datatypes import DateTime, Integer, String
+from src.nofeardb.datatypes import UUID, DateTime, Integer, String
 from src.nofeardb.enums import DocumentStatus
 from src.nofeardb.orm import Document, Field, ManyToMany, ManyToOne, OneToMany
 
@@ -46,7 +46,7 @@ def test_setting_document_id_correct_type():
     generated_id = uuid.uuid4()
 
     class IdTestDoc(Document):
-        id = Field(uuid.UUID, primary_key=True)
+        id = Field(UUID, primary_key=True)
 
     doc = IdTestDoc()
     doc.id = generated_id
@@ -61,12 +61,19 @@ def test_setting_document_id_incorrect_type():
     generated_id = "helloworld"
 
     class IdTestDoc(Document):
-        id = Field(uuid.UUID, primary_key=True)
+        id = Field(UUID, primary_key=True)
+        
+    class IdTestDoc2(Document):
+        id = Field(String, primary_key=True)
 
     doc = IdTestDoc()
+    doc2 = IdTestDoc2()
 
     with pytest.raises(ValueError):
         doc.id = generated_id
+        
+    with pytest.raises(ValueError):
+        doc2.id = "hello_world"
 
 
 def test_reset_object():

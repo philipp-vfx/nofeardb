@@ -6,3 +6,4 @@ class DocumentStatus(Enum):
     SYNC = 2
     MOD = 3
     DEL = 4
+    LAZY = 5

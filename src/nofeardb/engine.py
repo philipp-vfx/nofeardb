@@ -271,6 +271,13 @@ class StorageEngine:
 
     def delete(self, doc: Document):
         """delete the document"""
+        
+    def _get_doc_class_by_name(self, name)-> type:
+        for model in self._models:
+            if model.__name__ == name:
+                return model
+            
+        raise RuntimeError("Document class " + str(name) + "not registered in engine.")
 
     def _fill_document_with_data(self, doc: Document, data: dict):
         for name, attr in vars(doc.__class__).items():
@@ -282,15 +289,28 @@ class StorageEngine:
             if isinstance(attr, Field):
                 if value is not None:
                     setattr(doc, name, value)
-
-            elif isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
-                # empty objects of relationship class are created and will be loaded when they are accessed.
-                # Relationship is set for all ids, that are not already in the relationship (already loaded)
+                    
+            elif isinstance(attr, Relationship):
+                rel_class = self._get_doc_class_by_name(attr._rel_class_name)
+                rel_docs = []
                 if value is not None:
-                    pass
-            elif isinstance(attr, ManyToOne):
-                if value is not None:
-                    pass
+                    for rel_id in value:
+                        rel_doc = rel_class()
+                        rel_doc.__id__ = UUID.cast(rel_id)
+                        rel_docs.append(rel_doc)
+                        
+                    if len(rel_docs) > 0:
+                        if isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
+                            setattr(doc, name, rel_docs)
+                        elif isinstance(attr, ManyToOne):
+                            setattr(doc, name, rel_docs[0])
+                            
+                for rel_doc in rel_docs:
+                    rel_doc.__status__ = DocumentStatus.LAZY
+                    rel_doc.__added_relationships__ = {}
+                    rel_doc.__removed_relationships__ = {}
+                    doc.__added_relationships__ = {}
+                    doc.__removed_relationships__ = {}
 
     def read(self, doc_type: type, query_filter: QueryFilter = None) -> List[Document]:
         """read the documents of the specified type"""
@@ -309,6 +329,8 @@ class StorageEngine:
                 pass
 
             self._fill_document_with_data(doc, data)
+            
+            doc.__status__ = DocumentStatus.SYNC
 
             documents.append(doc)
 
