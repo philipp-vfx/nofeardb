@@ -21,6 +21,7 @@ class Document:
 
     def __init__(self):
         self.__id__ = uuid.uuid4()
+        self.__engine__ = None
         self.__status__ = DocumentStatus.NEW
         self.__changed_fields__ = []
         self.__added_relationships__ = {}
@@ -119,6 +120,21 @@ class Relationship(ABC):
 
     def __set_name__(self, owner, name):
         self._name = name
+
+    def lazy_load_documents(self, rel_docs: List[Document]):
+        """loads data for all documents that are marked as lazy"""
+        for rel_doc in rel_docs:
+            if rel_doc is not None and isinstance(rel_doc, Document):
+                if rel_doc.__status__ == DocumentStatus.LAZY:
+                    engine = rel_doc.__engine__
+                    if engine is None:
+                        raise RuntimeError(
+                            "The lazy document that should be loaded is not bound to an engine."
+                            + "That could mean, "
+                            + "that the document was not created by an engine initially."
+                        )
+
+                    engine.lazy_load(rel_doc)
 
     @abstractmethod
     def back_populate_reverse_relationship(self, instance):
@@ -355,7 +371,9 @@ class OneToMany(Relationship):
             return instance.__dict__[self._name + "_rel"]
 
     def __get__(self, instance, owner):
-        return self.get_relation(instance)
+        rel_docs = self.get_relation(instance)
+        self.lazy_load_documents(rel_docs)
+        return rel_docs
 
     def __set__(self, instance: Document, related_docs: List[Document]):
         self.clear_reverse_relationship(instance)
@@ -427,7 +445,9 @@ class ManyToOne(Relationship):
             return instance.__dict__[self._name + "_rel"]
 
     def __get__(self, instance, owner):
-        return self.get_relation(instance)
+        rel_doc = self.get_relation(instance)
+        self.lazy_load_documents([rel_doc])
+        return rel_doc
 
     def __set__(self, instance: Document, related_doc: Document):
         self.clear_reverse_relationship(instance)
@@ -473,7 +493,9 @@ class ManyToMany(Relationship):
             return instance.__dict__[self._name + "_rel"]
 
     def __get__(self, instance, owner):
-        return self.get_relation(instance)
+        rel_docs = self.get_relation(instance)
+        self.lazy_load_documents(rel_docs)
+        return rel_docs
 
     def __set__(self, instance: Document, related_docs: List[Document]):
         if instance.__status__ == DocumentStatus.DEL:
@@ -583,7 +605,7 @@ class Field:
             and instance.__status__ != DocumentStatus.NEW
         ):
             instance.__changed_fields__.append(self._name)
-            
+
         if value is not None:
             value = self._datatype.cast(value)
 

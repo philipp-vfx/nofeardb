@@ -271,13 +271,14 @@ class StorageEngine:
 
     def delete(self, doc: Document):
         """delete the document"""
-        
-    def _get_doc_class_by_name(self, name)-> type:
+
+    def _get_doc_class_by_name(self, name) -> type:
         for model in self._models:
             if model.__name__ == name:
                 return model
-            
-        raise RuntimeError("Document class " + str(name) + "not registered in engine.")
+
+        raise RuntimeError("Document class " + str(name) +
+                           "not registered in engine.")
 
     def _fill_document_with_data(self, doc: Document, data: dict):
         for name, attr in vars(doc.__class__).items():
@@ -289,7 +290,7 @@ class StorageEngine:
             if isinstance(attr, Field):
                 if value is not None:
                     setattr(doc, name, value)
-                    
+
             elif isinstance(attr, Relationship):
                 rel_class = self._get_doc_class_by_name(attr._rel_class_name)
                 rel_docs = []
@@ -298,21 +299,42 @@ class StorageEngine:
                         rel_doc = rel_class()
                         rel_doc.__id__ = UUID.cast(rel_id)
                         rel_docs.append(rel_doc)
-                        
+
                     if len(rel_docs) > 0:
-                        # TODO: already loaded documents should not be replaced by this operation 
+                        loaded_relationship = getattr(doc, name)
+                        print(loaded_relationship)
                         if isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
-                            setattr(doc, name, rel_docs)
+                            if loaded_relationship is not None:
+                                for rel_doc in rel_docs:
+                                    if (
+                                        rel_doc.__id__ not in [
+                                            doc.__id__ for doc in loaded_relationship]
+                                    ):
+                                        loaded_relationship.append(rel_doc)
                         elif isinstance(attr, ManyToOne):
-                            setattr(doc, name, rel_docs[0])
-                            
+                            if (
+                                loaded_relationship is None
+                                or rel_docs[0].__id__ != loaded_relationship.__id__
+                            ):
+                                setattr(doc, name, rel_docs[0])
+
                 for rel_doc in rel_docs:
                     rel_doc.__status__ = DocumentStatus.LAZY
                     rel_doc.__added_relationships__ = {}
                     rel_doc.__removed_relationships__ = {}
-                    
+                    rel_doc.__engine__ = self
+
                 doc.__added_relationships__ = {}
                 doc.__removed_relationships__ = {}
+                doc.__status__ = DocumentStatus.SYNC
+
+    def lazy_load(self, doc: Document):
+        """executes lazy loading for docs that are marked as LAZY"""
+        if doc.__status__ == DocumentStatus.LAZY:
+            print("lazy_load_document" + str(doc))
+            doc_path = self._get_existing_document_file_name(doc)
+            data = self._read_document_from_disk(doc_path)
+            self._fill_document_with_data(doc, data)
 
     def read(self, doc_type: type, query_filter: QueryFilter = None) -> List[Document]:
         """read the documents of the specified type"""
@@ -331,8 +353,8 @@ class StorageEngine:
                 pass
 
             self._fill_document_with_data(doc, data)
-            
-            doc.__status__ = DocumentStatus.SYNC
+
+            doc.__engine__ = self
 
             documents.append(doc)
 

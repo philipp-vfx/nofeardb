@@ -730,21 +730,25 @@ def test_read_all_documents_relationships(mocker):
 
     docs = engine.read(TestDoc)
     read_doc = docs[0]
+    assert read_doc.__dict__['rel_rel'].__status__ == DocumentStatus.LAZY
     assert read_doc.rel.__id__ == rel.__id__
+    assert read_doc.__dict__['rel_rel'].__status__ == DocumentStatus.SYNC
     assert read_doc.__status__ == DocumentStatus.SYNC
-    assert read_doc.rel.__status__ == DocumentStatus.LAZY
     assert read_doc.__added_relationships__ == {}
 
     mocker.patch.object(
-        StorageEngine, '_read_document_from_disk', return_value={"rel": [str(doc.__id__)]})
+        StorageEngine, '_read_document_from_disk', side_effect=[
+            {"id": str(rel.__id__), "rel": [str(doc.__id__)]},
+            {"id": str(doc.__id__), "rel": [str(rel.__id__)]}
+        ])
 
     docs = engine.read(RelDoc)
     read_doc = docs[0]
     assert read_doc.rel[0].__id__ == doc.__id__
     assert read_doc.__status__ == DocumentStatus.SYNC
-    assert read_doc.rel[0].__status__ == DocumentStatus.LAZY
     assert read_doc.__added_relationships__ == {}
-    
+
+
 def test_load_relation_unregistered_doctype(mocker):
     class TestDoc(Document):
 
@@ -761,3 +765,78 @@ def test_load_relation_unregistered_doctype(mocker):
 
     with pytest.raises(RuntimeError):
         engine.read(TestDoc)
+
+
+def test_read_all_documents_relationships_lazy_loading(mocker):
+    class TestDoc(Document):
+
+        rel = ManyToOne("RelDoc", back_populates="rels")
+
+    class RelDoc(Document):
+        rels = OneToMany("TestDoc", back_populates="rel")
+
+    doc = TestDoc()
+    doc2 = TestDoc()
+    rel = RelDoc()
+
+    doc.rel = rel
+    doc2.rel = rel
+
+    mocker.patch.object(
+        StorageEngine,
+        '_read_document_from_disk',
+        side_effect=[
+            {"id": str(doc.__id__), "rel": [str(rel.__id__)]},
+            {"id": str(rel.__id__), "rels": [
+                str(doc.__id__), str(doc2.__id__)]},
+            {"id": str(doc2.__id__), "rel": [str(rel.__id__)]},
+        ]
+    )
+    mocker.patch('os.listdir', return_value=["first_document"])
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc, RelDoc])
+
+    docs = engine.read(TestDoc)
+    read_doc = docs[0]
+    assert read_doc.rel.__id__ == rel.__id__
+    assert len(read_doc.rel.rels) == 2
+    assert read_doc.rel.rels[0] == read_doc
+
+
+def test_read_all_documents_relationships_lazy_loading_unbound_engine(mocker):
+    class TestDoc(Document):
+
+        rel = ManyToOne("RelDoc", back_populates="rels")
+
+    class RelDoc(Document):
+        rels = OneToMany("TestDoc", back_populates="rel")
+
+    doc = TestDoc()
+    doc2 = TestDoc()
+    rel = RelDoc()
+
+    doc.rel = rel
+    doc2.rel = rel
+
+    mocker.patch.object(
+        StorageEngine,
+        '_read_document_from_disk',
+        side_effect=[
+            {"id": str(doc.__id__), "rel": [str(rel.__id__)]},
+            {"id": str(rel.__id__), "rels": [
+                str(doc.__id__), str(doc2.__id__)]},
+            {"id": str(doc2.__id__), "rel": [str(rel.__id__)]},
+        ]
+    )
+    mocker.patch('os.listdir', return_value=["first_document"])
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc, RelDoc])
+
+    docs = engine.read(TestDoc)
+    read_doc = docs[0]
+    read_doc.__dict__["rel_rel"].__engine__ = None
+
+    with pytest.raises(RuntimeError):
+        read_doc.rel
