@@ -9,6 +9,7 @@ import json
 import uuid
 from typing import List
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 from .exceptions import DocumentLockException
 
@@ -347,27 +348,38 @@ class StorageEngine:
             data = self._read_document_from_disk(doc_path)
             self._fill_document_with_data(doc, data)
 
+    def _concurrent_read_helper(self, doc_type: type, document_path: str):
+        data = self._read_document_from_disk(document_path)
+        doc = doc_type()
+
+        try:
+            value = UUID.cast(data["id"])
+            setattr(doc, "__id__", value)
+        except KeyError:
+            pass
+
+        self._fill_document_with_data(doc, data)
+
+        doc.__engine__ = self
+
+        return doc
+
     def read(self, doc_type: type, query_filter: QueryFilter = None) -> List[Document]:
         """read the documents of the specified type"""
         base_path = self.get_doc_basepath(doc_type)
         document_jsons = os.listdir(base_path)
-        documents = []
-        for document in document_jsons:
-            data = self._read_document_from_disk(
-                os.path.join(base_path, document))
-            doc = doc_type()
 
-            try:
-                value = UUID.cast(data["id"])
-                setattr(doc, "__id__", value)
-            except KeyError:
-                pass
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+            # Submit tasks for each JSON file
+            futures = [
+                executor.submit(
+                    self._concurrent_read_helper, doc_type, os.path.join(
+                        base_path, document)
+                )
+                for document in document_jsons]
 
-            self._fill_document_with_data(doc, data)
-
-            doc.__engine__ = self
-
-            documents.append(doc)
+            # Wait for all tasks to complete
+            documents = [future.result() for future in futures]
 
         return documents
 
