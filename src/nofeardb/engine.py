@@ -223,8 +223,9 @@ class StorageEngine:
             os.close(fd)
 
     def _read_document_from_disk(self, doc_path) -> dict:
-        doc_id, doc_hash = self._extract_id_and_hash_from_filename(doc_path)
         if doc_path is not None:
+            doc_id, doc_hash = self._extract_id_and_hash_from_filename(
+                doc_path)
             try:
                 data = json.loads(self._read_document_bytes(doc_path))
                 if doc_id is not None and doc_hash is not None:
@@ -238,11 +239,32 @@ class StorageEngine:
 
         return None
 
+    def _read_document_from_cache(self, doc_path) -> dict:
+        doc_id, doc_hash = self._extract_id_and_hash_from_filename(doc_path)
+        if doc_id is not None and doc_hash is not None:
+            try:
+                cache_data = dict(self._data_cache[doc_id])
+                cache_hash = cache_data['__doc_hash__']
+                if cache_hash == doc_hash:
+                    del cache_data['__doc_hash__']
+                    return cache_data
+            except KeyError:
+                return None
+
+        return None
+
+    def _get_document_data(self, doc_path):
+        data = self._read_document_from_cache(doc_path)
+        if data is None:
+            data = self._read_document_from_disk(doc_path)
+
+        return data
+
     def write_json(self, doc: Document):
         """writes the document data to disk"""
         if doc.__status__ != DocumentStatus.SYNC:
             previous_file = self._get_existing_document_file_name(doc)
-            previous_data = self._read_document_from_disk(previous_file)
+            previous_data = self._get_document_data(previous_file)
             data_to_write = None
             if previous_data is not None:
                 data_to_write = self.update_json(previous_data, doc)
@@ -372,11 +394,11 @@ class StorageEngine:
         """executes lazy loading for docs that are marked as LAZY"""
         if doc.__status__ == DocumentStatus.LAZY:
             doc_path = self._get_existing_document_file_name(doc)
-            data = self._read_document_from_disk(doc_path)
+            data = self._get_document_data(doc_path)
             self._fill_document_with_data(doc, data)
 
     def _concurrent_read_helper(self, doc_type: type, document_path: str):
-        data = self._read_document_from_disk(document_path)
+        data = self._get_document_data(document_path)
         doc = doc_type()
 
         try:
