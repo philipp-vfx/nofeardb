@@ -204,10 +204,23 @@ class StorageEngine:
 
         return None
 
-    def _read_document_from_disk(self, doc_path):
+    def _read_document_bytes(self, doc_path: str, size=-1) -> bytes:
+        fd = os.open(doc_path, os.O_RDONLY)
+        try:
+            if size == -1:
+                size = os.fstat(fd).st_size
+            return os.read(fd, size)
+        finally:
+            os.close(fd)
+
+    def _read_document_from_disk(self, doc_path) -> dict:
         if doc_path is not None:
-            with open(doc_path, encoding="utf-8") as f:
-                return json.load(f)
+            try:
+                data = json.loads(self._read_document_bytes(doc_path))
+            except (PermissionError, IOError):
+                data = None
+
+            return data
 
         return None
 

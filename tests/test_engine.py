@@ -573,10 +573,19 @@ def test_read_data_from_file(mocker):
     lock_content = str("{\"test\": \"hello\", \"test_int\":38}")
     mocked_fileread_data = mocker.mock_open(read_data=lock_content)
     mocker.patch('builtins.open', mocked_fileread_data)
+    mocker.patch('json.loads', return_value={"test": "hello", "test_int": 38})
+    mocker.patch('os.open')
+    mocker.patch('os.fstat')
+    mocker.patch('os.read', return_value={"test": "hello", "test_int": 38})
+    mocker.patch('os.close')
     assert engine._read_document_from_disk(
         "test/doc/path") == {'test': 'hello', 'test_int': 38}
     assert engine._read_document_from_disk(
         None) == None
+
+    mocker.patch('json.loads', side_effect=PermissionError)
+    assert engine._read_document_from_disk(
+        "test/doc/path") == None
 
 
 def test_write_json_previous_file_existing(mocker):
