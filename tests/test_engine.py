@@ -578,8 +578,10 @@ def test_read_data_from_file(mocker):
     mocker.patch('os.fstat')
     mocker.patch('os.read', return_value={"test": "hello", "test_int": 38})
     mocker.patch('os.close')
+    mocker.patch.object(
+        StorageEngine, '_extract_id_and_hash_from_filename', return_value=("test_id", "test_hash"))
     assert engine._read_document_from_disk(
-        "test/doc/path") == {'test': 'hello', 'test_int': 38}
+        "test/doc/path") == {'__doc_hash__': 'test_hash', 'test': 'hello', 'test_int': 38}
     assert engine._read_document_from_disk(
         None) == None
 
@@ -866,3 +868,30 @@ def test_get_document_with_id_existing_no_valid_path(mocker):
     mocker.patch('os.listdir', side_effect=OSError(
         "no file or directory found"))
     assert engine._get_document_with_id_existing(doc1) == False
+
+
+def test_extract_id_and_hash_from_filename_single_name():
+    engine = StorageEngine("test/path")
+
+    doc_id, doc_hash = engine._extract_id_and_hash_from_filename(
+        "test_id__test_hash.json")
+    assert doc_id == "test_id"
+    assert doc_hash == "test_hash"
+
+
+def test_extract_id_and_hash_from_filename_path():
+    engine = StorageEngine("test/path")
+
+    doc_id, doc_hash = engine._extract_id_and_hash_from_filename(
+        "/path/to/test_id__test_hash.json")
+    assert doc_id == "test_id"
+    assert doc_hash == "test_hash"
+
+
+def test_extract_id_and_hash_invalid_filename():
+    engine = StorageEngine("test/path")
+
+    doc_id, doc_hash = engine._extract_id_and_hash_from_filename(
+        "/path/to/test_id_test_hash.json")
+    assert doc_id == None
+    assert doc_hash == None

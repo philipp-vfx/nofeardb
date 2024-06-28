@@ -25,6 +25,7 @@ class StorageEngine:
     def __init__(self, root: str):
         self._root = os.path.normpath(root)
         self._models = []
+        self._data_cache = {}
 
     def register_models(self, models: List[type]):
         """
@@ -204,6 +205,14 @@ class StorageEngine:
 
         return None
 
+    def _extract_id_and_hash_from_filename(self, doc_path):
+        try:
+            filename, _ = os.path.splitext(os.path.basename(doc_path))
+            doc_id, doc_hash = filename.split("__")
+            return (doc_id, doc_hash)
+        except (ValueError, TypeError):
+            return (None, None)
+
     def _read_document_bytes(self, doc_path: str, size=-1) -> bytes:
         fd = os.open(doc_path, os.O_RDONLY)
         try:
@@ -214,9 +223,14 @@ class StorageEngine:
             os.close(fd)
 
     def _read_document_from_disk(self, doc_path) -> dict:
+        doc_id, doc_hash = self._extract_id_and_hash_from_filename(doc_path)
         if doc_path is not None:
             try:
                 data = json.loads(self._read_document_bytes(doc_path))
+                if doc_id is not None and doc_hash is not None:
+                    # update data cache
+                    data["__doc_hash__"] = doc_hash
+                    self._data_cache[doc_id] = data
             except (PermissionError, IOError):
                 data = None
 
