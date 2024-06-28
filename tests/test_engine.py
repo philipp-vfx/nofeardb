@@ -99,7 +99,7 @@ def test_createJsonAlreadyExistingId(mocker):
 
     assert engine._check_all_documents_can_be_written([doc1]) == True
     with pytest.raises(RuntimeError):
-        engine._check_all_documents_can_be_written([doc1, doc2]) == False
+        engine._check_all_documents_can_be_written([doc1, doc2])
 
 
 def test_updateJsonNotExistingId(mocker):
@@ -177,7 +177,7 @@ def test_create_json_many_to_one_bidirectional():
 
     expected_json = {
         'id': str(rel.__id__),
-        'test_doc': None
+        'test_doc': [None]
     }
 
     assert engine.create_json(rel) == expected_json
@@ -193,7 +193,7 @@ def test_create_json_many_to_one_bidirectional():
 
     expected_json = {
         'id': str(rel.__id__),
-        'test_doc': str(doc.__id__)
+        'test_doc': [str(doc.__id__)]
     }
 
     assert engine.create_json(rel) == expected_json
@@ -641,6 +641,8 @@ def test_create_and_update_doc(mocker):
         StorageEngine, '_unlock_docs')
     patched_write = mocker.patch.object(
         StorageEngine, 'write_json')
+    mocker.patch('os.makedirs')
+    mocker.patch('os.path.exists', return_value=False)
 
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc])
@@ -840,3 +842,18 @@ def test_read_all_documents_relationships_lazy_loading_unbound_engine(mocker):
 
     with pytest.raises(RuntimeError):
         read_doc.rel
+
+
+def test_get_document_with_id_existing_no_valid_path(mocker):
+    class TestDoc(Document):
+        pass
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc])
+
+    doc1 = TestDoc()
+
+    mocker.patch('os.path.exists', return_value=False)
+    mocker.patch('os.listdir', side_effect=OSError(
+        "no file or directory found"))
+    assert engine._get_document_with_id_existing(doc1) == False

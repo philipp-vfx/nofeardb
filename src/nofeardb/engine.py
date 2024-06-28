@@ -56,9 +56,9 @@ class StorageEngine:
 
             if isinstance(attr, ManyToOne):
                 if getattr(doc, name) is not None:
-                    doc_json[name] = str(getattr(doc, name).__id__)
+                    doc_json[name] = [str(getattr(doc, name).__id__)]
                 else:
-                    doc_json[name] = None
+                    doc_json[name] = [None]
 
         return doc_json
 
@@ -142,9 +142,12 @@ class StorageEngine:
     def _get_document_with_id_existing(self, doc: Document):
         """Checks wether a document with the same ID already exists."""
         doc_base_path = self.get_doc_basepath(doc)
-        existing_ids = [doc_name.split("__")[0]
-                        for doc_name in os.listdir(doc_base_path)]
-        return str(doc.__id__) in existing_ids
+        if os.path.exists(doc_base_path):
+            existing_ids = [doc_name.split("__")[0]
+                            for doc_name in os.listdir(doc_base_path)]
+            return str(doc.__id__) in existing_ids
+
+        return False
 
     def _check_all_documents_can_be_written(self, docs: List[Document]):
         """
@@ -230,11 +233,19 @@ class StorageEngine:
 
             os.rename(doc_temp_path, doc_path)
 
+    def _create_base_pathes(self):
+        for doc in self._models:
+            base_path = self.get_doc_basepath(doc)
+            if not os.path.exists(base_path):
+                os.makedirs(base_path)
+
     def create(self, doc: Document):
         """create the document"""
         if doc.__status__ is not DocumentStatus.NEW:
             raise RuntimeError(
                 "The document is not new. Only new documents can be created")
+
+        self._create_base_pathes()
 
         dependencies = self.resolve_dependencies(doc)
         if self._check_all_documents_can_be_written(dependencies):
@@ -256,6 +267,8 @@ class StorageEngine:
 
         if doc.__status__ is DocumentStatus.DEL:
             raise RuntimeError("Deleted documents cannot be updated")
+
+        self._create_base_pathes()
 
         dependencies = self.resolve_dependencies(doc)
         if self._check_all_documents_can_be_written(dependencies):
@@ -302,7 +315,6 @@ class StorageEngine:
 
                     if len(rel_docs) > 0:
                         loaded_relationship = getattr(doc, name)
-                        print(loaded_relationship)
                         if isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
                             if loaded_relationship is not None:
                                 for rel_doc in rel_docs:
@@ -331,7 +343,6 @@ class StorageEngine:
     def lazy_load(self, doc: Document):
         """executes lazy loading for docs that are marked as LAZY"""
         if doc.__status__ == DocumentStatus.LAZY:
-            print("lazy_load_document" + str(doc))
             doc_path = self._get_existing_document_file_name(doc)
             data = self._read_document_from_disk(doc_path)
             self._fill_document_with_data(doc, data)
@@ -408,7 +419,7 @@ class DocumentLock:
 
         with open(self.__lock_path, "a", encoding="utf-8") as lock_file:
             lock_file.writelines(
-                [self._lock_id,
+                [str(self._lock_id),
                  datetime.now().strftime(self.__dateformat)]
             )
 
