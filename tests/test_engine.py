@@ -895,3 +895,41 @@ def test_extract_id_and_hash_invalid_filename():
         "/path/to/test_id_test_hash.json")
     assert doc_id == None
     assert doc_hash == None
+
+
+def test_read_from_cache_not_in_cache(mocker):
+    engine = StorageEngine("test/path")
+
+    mocker.patch.object(
+        StorageEngine, '_extract_id_and_hash_from_filename', return_value=("test_id", "test_hash"))
+
+    cache_data = {"id": "second_test_id", "attr2": "hello"}
+    cache_data["__doc_hash__"] = "test_hash"
+    engine._data_cache = {"second_test_id": cache_data}
+
+    data = engine._read_document_from_cache("test/path/test")
+
+    assert data is None
+
+    data = engine._read_document_from_cache(None)
+
+    assert data is None
+
+
+def test_read_from_cache_if_in_cache(mocker):
+    engine = StorageEngine("test/path")
+
+    mocker.patch.object(
+        StorageEngine, '_extract_id_and_hash_from_filename', return_value=("test_id", "test_hash"))
+
+    data = engine._read_document_from_cache("test/path/test")
+
+    data = {"id": "test_id", "attr2": "hello"}
+
+    cache_data = dict(data)
+    cache_data["__doc_hash__"] = "test_hash"
+    engine._data_cache = {"test_id": cache_data}
+
+    cached_data = engine._read_document_from_cache("test/path/test")
+
+    assert cached_data == data
