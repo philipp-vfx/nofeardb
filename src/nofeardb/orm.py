@@ -84,26 +84,30 @@ class Document:
         self.__changed_fields__ = []
 
     def get_hash(self):
+        """
+        calculates the hash value for the document
+        """
         m = hashlib.md5()
 
         for name, attr in vars(self.__class__).items():
-            try:
-                if isinstance(attr, Field):
-                    m.update(name.encode())
-                    field_type: OrmDataType = getattr(
-                        self, name + "__datatype")
+            if isinstance(attr, Field):
+                m.update(name.encode())
+                field_type: OrmDataType = getattr(
+                    self, name + "__datatype")
+                attr_value = getattr(self, name)
+                if attr_value is not None:
                     m.update(str(field_type.serialize(
-                        getattr(self, name))).encode())
-                if isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
-                    m.update(name.encode())
-                    m.update(str([str(doc.__id__)
-                             for doc in getattr(self, name)]).encode())
-                if isinstance(attr, ManyToOne):
-                    m.update(name.encode())
-                    if getattr(self, name) is not None:
-                        m.update(str(getattr(self, name).__id__).encode())
-            except KeyError:
-                pass
+                        attr_value)).encode())
+                else:
+                    m.update(str(None).encode())
+            if isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
+                m.update(name.encode())
+                m.update(str([str(doc.__id__)
+                              for doc in getattr(self, name)]).encode())
+            if isinstance(attr, ManyToOne):
+                m.update(name.encode())
+                if getattr(self, name) is not None:
+                    m.update(str(getattr(self, name).__id__).encode())
 
         return str(m.hexdigest())
 
@@ -578,10 +582,13 @@ class Field:
             setattr(owner, "__primary_key_attribute__", self._name)
 
     def __get__(self, instance: Document, owner):
-        if self._primary_key:
-            return instance.__id__
+        try:
+            if self._primary_key:
+                return instance.__id__
 
-        return instance.__dict__[self._name]
+            return instance.__dict__[self._name]
+        except KeyError:
+            return None
 
     def __set__(self, instance: Document, value):
         if instance.__status__ == DocumentStatus.DEL:

@@ -940,6 +940,7 @@ def test_fill_document_with_data_changed_fields(mocker):
 
         test_field1 = Field(String)
         test_field2 = Field(String)
+        test_field3 = Field(String)
 
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc])
@@ -954,3 +955,4 @@ def test_fill_document_with_data_changed_fields(mocker):
 
     assert doc.test_field1 == "hello"
     assert doc.test_field2 == "world"
+    assert doc.test_field3 is None
