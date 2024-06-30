@@ -933,3 +933,24 @@ def test_read_from_cache_if_in_cache(mocker):
     cached_data = engine._read_document_from_cache("test/path/test")
 
     assert cached_data == data
+
+
+def test_fill_document_with_data_changed_fields(mocker):
+    class TestDoc(Document):
+
+        test_field1 = Field(String)
+        test_field2 = Field(String)
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc])
+
+    doc = TestDoc()
+    doc.test_field2 = "world"
+
+    data = {"id": "test_id", "test_field1": "hello",
+            "unrecognized_field": "something different"}
+
+    engine._fill_document_with_data(doc, data)
+
+    assert doc.test_field1 == "hello"
+    assert doc.test_field2 == "world"
