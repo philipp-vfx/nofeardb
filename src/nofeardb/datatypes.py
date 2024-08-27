@@ -47,6 +47,33 @@ class UUID(OrmDataType):
     @classmethod
     def deserialize(cls, value: str) -> int:
         return cls.cast(value)
+    
+class Boolean(OrmDataType):
+    """ORM Integer Datatype"""
+
+    @classmethod
+    def cast(cls, value) -> bool:
+        if isinstance(value, str):
+            if value.lower() in ["none", "null"]:
+                return None
+            
+            return value in ["True", "true", "1"]
+
+        return bool(value)
+
+    @classmethod
+    def serialize(cls, value) -> str:
+        if value is None:
+            return "None"
+        
+        if not isinstance(value, bool) and not isinstance(value, int):
+            raise AttributeError("Argument must be of type boolean")
+
+        return str(bool(value))
+
+    @classmethod
+    def deserialize(cls, value: str) -> bool:
+        return cls.cast(value)
 
 
 class Integer(OrmDataType):

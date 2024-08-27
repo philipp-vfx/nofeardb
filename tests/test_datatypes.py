@@ -3,7 +3,7 @@
 import pytest
 import uuid
 
-from src.nofeardb.datatypes import Integer, Float, String, DateTime, UUID
+from src.nofeardb.datatypes import Integer, Float, String, DateTime, UUID, Boolean
 from datetime import datetime
 
 
@@ -25,6 +25,28 @@ def test_integer():
 
     with pytest.raises(AttributeError):
         Integer.serialize("2")
+        
+def test_bool():
+    assert Boolean.deserialize("True") == True
+    assert Boolean.deserialize("None") == None
+    assert Boolean.deserialize("true") == True
+    assert Boolean.deserialize("1") == True
+    assert Boolean.deserialize("False") == False
+    assert Boolean.deserialize("false") == False
+    assert Boolean.deserialize("0") == False
+    assert Boolean.cast(True) == True
+    assert Boolean.cast(False) == False
+    assert Boolean.cast(0) == False
+    assert Boolean.cast(1) == True
+
+    assert Boolean.serialize(True) == "True"
+    assert Boolean.serialize(1) == "True"
+    assert Boolean.serialize(False) == "False"
+    assert Boolean.serialize(0) == "False"
+    assert Boolean.serialize(None) == "None"
+    
+    with pytest.raises(AttributeError):
+        Boolean.serialize("None")
 
 
 def test_Float():

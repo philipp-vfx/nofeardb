@@ -95,7 +95,8 @@ def test_createJsonAlreadyExistingId(mocker):
     doc2 = TestDoc()
     doc2.__id__ = "id2"
 
-    mocker.patch('os.listdir', return_value=["id1", "id2"])
+    mocker.patch('os.listdir', return_value=["id1__hash1", "id2__hash2"])
+    mocker.patch('os.path.exists', return_value=True)
 
     assert engine._check_all_documents_can_be_written([doc1]) == True
     with pytest.raises(RuntimeError):
@@ -117,7 +118,8 @@ def test_updateJsonNotExistingId(mocker):
     doc2.__id__ = "id2"
     doc2.__status__ = DocumentStatus.MOD
 
-    mocker.patch('os.listdir', return_value=["id1", "id2"])
+    mocker.patch('os.listdir', return_value=["id1__hash1", "id2__hash2"])
+    mocker.patch('os.path.exists', return_value=True)
 
     assert engine._check_all_documents_can_be_written([doc2]) == True
     with pytest.raises(RuntimeError):
@@ -686,7 +688,7 @@ def test_read_all_documents_of_type(mocker):
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc])
 
-    docs = engine.read(TestDoc)
+    docs = engine.read(TestDoc).all()
     read_doc = docs[0]
     assert read_doc.__id__ == doc.__id__
     assert read_doc.attr1 == doc.attr1
@@ -713,7 +715,7 @@ def test_read_all_documents_of_type_custom_id(mocker):
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc])
 
-    docs = engine.read(TestDoc)
+    docs = engine.read(TestDoc).all()
     read_doc = docs[0]
     assert read_doc.__id__ == id
     assert read_doc.attr1 == id
@@ -741,7 +743,7 @@ def test_read_all_documents_relationships(mocker):
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc, RelDoc])
 
-    docs = engine.read(TestDoc)
+    docs = engine.read(TestDoc).all()
     read_doc = docs[0]
     assert read_doc.__dict__['rel_rel'].__status__ == DocumentStatus.LAZY
     assert read_doc.rel.__id__ == rel.__id__
@@ -755,7 +757,7 @@ def test_read_all_documents_relationships(mocker):
             {"id": str(doc.__id__), "rel": [str(rel.__id__)]}
         ])
 
-    docs = engine.read(RelDoc)
+    docs = engine.read(RelDoc).all()
     read_doc = docs[0]
     assert read_doc.rel[0].__id__ == doc.__id__
     assert read_doc.__status__ == DocumentStatus.SYNC
@@ -810,7 +812,7 @@ def test_read_all_documents_relationships_lazy_loading(mocker):
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc, RelDoc])
 
-    docs = engine.read(TestDoc)
+    docs = engine.read(TestDoc).all()
     read_doc = docs[0]
     assert read_doc.rel.__id__ == rel.__id__
     assert len(read_doc.rel.rels) == 2
@@ -847,7 +849,7 @@ def test_read_all_documents_relationships_lazy_loading_unbound_engine(mocker):
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc, RelDoc])
 
-    docs = engine.read(TestDoc)
+    docs = engine.read(TestDoc).all()
     read_doc = docs[0]
     read_doc.__dict__["rel_rel"].__engine__ = None
 

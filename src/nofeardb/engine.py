@@ -16,7 +16,7 @@ from .exceptions import DocumentLockException
 from .datatypes import OrmDataType, UUID
 from .enums import DocumentStatus
 from .orm import Document, Field, ManyToMany, ManyToOne, OneToMany, Relationship
-from .filter import QueryFilter
+from .query import Query
 
 
 class StorageEngine:
@@ -413,7 +413,7 @@ class StorageEngine:
 
         return doc
 
-    def read(self, doc_type: type, query_filter: QueryFilter = None) -> List[Document]:
+    def read(self, doc_type: type) -> Query:
         """read the documents of the specified type"""
         base_path = self.get_doc_basepath(doc_type)
         document_jsons = os.listdir(base_path)
@@ -430,7 +430,7 @@ class StorageEngine:
             # Wait for all tasks to complete
             documents = [future.result() for future in futures]
 
-        return documents
+        return Query(documents)
 
 
 class DocumentLock:
