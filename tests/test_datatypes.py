@@ -25,7 +25,8 @@ def test_integer():
 
     with pytest.raises(AttributeError):
         Integer.serialize("2")
-        
+
+
 def test_bool():
     assert Boolean.deserialize("True") == True
     assert Boolean.deserialize("None") == None
@@ -43,10 +44,9 @@ def test_bool():
     assert Boolean.serialize(1) == "True"
     assert Boolean.serialize(False) == "False"
     assert Boolean.serialize(0) == "False"
-    assert Boolean.serialize(None) == "None"
-    
+
     with pytest.raises(AttributeError):
-        Boolean.serialize("None")
+        Boolean.serialize("hallo")
 
 
 def test_Float():
@@ -106,3 +106,19 @@ def test_UUID():
 
     with pytest.raises(AttributeError):
         UUID.cast(2)
+
+
+def test_setting_none():
+    assert UUID.serialize(None) == None
+    assert Integer.serialize(None) == None
+    assert Float.serialize(None) == None
+    assert String.serialize(None) == None
+    assert Boolean.serialize(None) == None
+    assert DateTime.serialize(None) == None
+
+    assert UUID.deserialize(None) == None
+    assert Integer.deserialize(None) == None
+    assert Float.deserialize(None) == None
+    assert String.deserialize(None) == None
+    assert Boolean.deserialize(None) == None
+    assert DateTime.deserialize(None) == None

@@ -1,6 +1,7 @@
 """ORM Datatypes"""
 
 import uuid
+import typing
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 
@@ -28,7 +29,10 @@ class UUID(OrmDataType):
     """ORM UUID Datatype"""
 
     @classmethod
-    def cast(cls, value) -> int:
+    def cast(cls, value) -> typing.Optional[uuid.UUID]:
+        if value is None:
+            return None
+
         if isinstance(value, uuid.UUID):
             return value
 
@@ -38,41 +42,48 @@ class UUID(OrmDataType):
         raise AttributeError("Argument must be of type str of uuid.UUID")
 
     @classmethod
-    def serialize(cls, value: int) -> str:
+    def serialize(cls, value: typing.Optional[uuid.UUID]) -> typing.Optional[str]:
+        if value is None:
+            return None
+
         if not isinstance(value, uuid.UUID):
             raise AttributeError("Argument must be of type uuid.UUID")
 
         return str(value)
 
     @classmethod
-    def deserialize(cls, value: str) -> int:
+    def deserialize(cls, value: str) -> typing.Optional[uuid.UUID]:
         return cls.cast(value)
-    
+
+
 class Boolean(OrmDataType):
     """ORM Integer Datatype"""
 
     @classmethod
-    def cast(cls, value) -> bool:
+    def cast(cls, value) -> typing.Optional[bool]:
+        if value is None:
+            return None
+
         if isinstance(value, str):
             if value.lower() in ["none", "null"]:
                 return None
-            
+
             return value in ["True", "true", "1"]
 
         return bool(value)
 
     @classmethod
-    def serialize(cls, value) -> str:
+    def serialize(cls, value: typing.Optional[bool]) -> typing.Optional[str]:
         if value is None:
-            return "None"
-        
+            return None
+
         if not isinstance(value, bool) and not isinstance(value, int):
             raise AttributeError("Argument must be of type boolean")
 
         return str(bool(value))
 
     @classmethod
-    def deserialize(cls, value: str) -> bool:
+    def deserialize(cls, value: str) -> typing.Optional[bool]:
         return cls.cast(value)
 
 
@@ -80,7 +91,10 @@ class Integer(OrmDataType):
     """ORM Integer Datatype"""
 
     @classmethod
-    def cast(cls, value) -> int:
+    def cast(cls, value) -> typing.Optional[int]:
+        if value is None:
+            return None
+
         if isinstance(value, str) and "." in value:
             return int(float(value))
 
@@ -90,14 +104,17 @@ class Integer(OrmDataType):
         return int(value)
 
     @classmethod
-    def serialize(cls, value: int) -> int:
+    def serialize(cls, value: typing.Optional[int]) -> typing.Optional[str]:
+        if value is None:
+            return None
+
         if not isinstance(value, int) and not isinstance(value, float):
             raise AttributeError("Argument must be of type int or float")
 
         return int(value)
 
     @classmethod
-    def deserialize(cls, value: str) -> int:
+    def deserialize(cls, value: str) -> typing.Optional[int]:
         return cls.cast(value)
 
 
@@ -105,21 +122,27 @@ class Float(OrmDataType):
     """ORM Float Datatype"""
 
     @classmethod
-    def cast(cls, value) -> float:
+    def cast(cls, value) -> typing.Optional[float]:
+        if value is None:
+            return None
+
         if isinstance(value, str) and "x" in value:
             return float(int(value, base=16))
 
         return float(value)
 
     @classmethod
-    def serialize(cls, value: float) -> float:
+    def serialize(cls, value: typing.Optional[float]) -> typing.Optional[str]:
+        if value is None:
+            return None
+
         if not isinstance(value, int) and not isinstance(value, float):
             raise AttributeError("Argument must be of type int or float")
 
         return float(value)
 
     @classmethod
-    def deserialize(cls, value: str) -> float:
+    def deserialize(cls, value: str) -> typing.Optional[float]:
         return cls.cast(value)
 
 
@@ -128,17 +151,23 @@ class String(OrmDataType):
 
     @classmethod
     def cast(cls, value) -> str:
+        if value is None:
+            return None
+
         return str(value)
 
     @classmethod
-    def serialize(cls, value: str) -> str:
+    def serialize(cls, value: typing.Optional[str]) -> typing.Optional[str]:
+        if value is None:
+            return None
+
         if not isinstance(value, str):
             raise AttributeError("Argument must be of type int or float")
 
         return str(value)
 
     @classmethod
-    def deserialize(cls, value: str) -> str:
+    def deserialize(cls, value: str) -> typing.Optional[str]:
         return cls.cast(value)
 
 
@@ -146,7 +175,10 @@ class DateTime(OrmDataType):
     """ORM Datetime Datatype"""
 
     @classmethod
-    def cast(cls, value) -> datetime:
+    def cast(cls, value) -> typing.Optional[datetime]:
+        if value is None:
+            return None
+
         if isinstance(value, datetime):
             return value
 
@@ -159,9 +191,12 @@ class DateTime(OrmDataType):
         raise AttributeError("Argument must be of type datetime or str")
 
     @classmethod
-    def serialize(cls, value: datetime) -> str:
+    def serialize(cls, value: typing.Optional[datetime]) -> typing.Optional[str]:
+        if value is None:
+            return None
+
         return str(value.isoformat())
 
     @classmethod
-    def deserialize(cls, value: str) -> datetime:
+    def deserialize(cls, value: str) -> typing.Optional[datetime]:
         return cls.cast(value)
