@@ -75,6 +75,23 @@ class Document:
                 except AttributeError:
                     self.__data_snapshot__[name] = getattr(self, name)
 
+    def validate(self) -> List[str]:
+        """
+        validates the object and returns a list of found errors
+        """
+        errors = []
+        for name, attr in vars(self.__class__).items():
+            if isinstance(attr, Field) or isinstance(attr, Field):
+                if attr.nullable is False and getattr(self, name) is None:
+                    errors.append(
+                        "Attribute \""
+                        + name
+                        + "\" of document \""
+                        + self.get_document_name()
+                        + "\" is not nullable, but the value is None")
+
+        return errors
+
     def reset(self):
         """restores the last snapshot"""
 
@@ -572,7 +589,7 @@ class Field:
     def __init__(self, datatype: OrmDataType, primary_key=False, nullable=True):
         self._name = None
         self._primary_key = primary_key
-        self._nullable = nullable
+        self.nullable = nullable
         self._datatype = datatype
 
     def __set_name__(self, owner, name):
@@ -595,7 +612,7 @@ class Field:
             raise RuntimeError(
                 "cannot set data on an already deleted document")
 
-        if not self._nullable and value is None:
+        if not self.nullable and value is None:
             raise ValueError("cannot set None on non nullable field")
 
         if instance.__status__ == DocumentStatus.SYNC:

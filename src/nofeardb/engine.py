@@ -11,7 +11,7 @@ from typing import List
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
-from .exceptions import DocumentLockException
+from .exceptions import DocumentLockException, NotCreateableException
 
 from .datatypes import OrmDataType, UUID
 from .enums import DocumentStatus
@@ -294,6 +294,10 @@ class StorageEngine:
         if doc.__status__ is not DocumentStatus.NEW:
             raise RuntimeError(
                 "The document is not new. Only new documents can be created")
+
+        errors = doc.validate()
+        if len(errors) > 0:
+            raise NotCreateableException(errors[0])
 
         self._create_base_pathes()
 

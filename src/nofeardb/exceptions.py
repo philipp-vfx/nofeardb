@@ -6,3 +6,7 @@ class DocumentLockException(Exception):
 
 class NoResultFoundException(Exception):
     pass
+
+
+class NotCreateableException(Exception):
+    pass

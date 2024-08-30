@@ -5,7 +5,7 @@ import uuid
 import datetime
 import os
 
-from src.nofeardb.exceptions import DocumentLockException
+from src.nofeardb.exceptions import DocumentLockException, NotCreateableException
 from src.nofeardb.enums import DocumentStatus
 from src.nofeardb.engine import DocumentLock, StorageEngine
 from src.nofeardb.datatypes import UUID, DateTime, Float, Integer, String
@@ -958,3 +958,21 @@ def test_fill_document_with_data_changed_fields(mocker):
     assert doc.test_field1 == "hello"
     assert doc.test_field2 == "world"
     assert doc.test_field3 is None
+
+
+def test_create_invalid_entity(mocker):
+    class TestDoc(Document):
+
+        test_field1 = Field(String, nullable=False)
+
+    mocker.patch('builtins.open')
+    mocker.patch('os.makedirs')
+    mocker.patch.object(DocumentLock, "lock")
+    mocker.patch.object(DocumentLock, "release")
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc])
+
+    doc = TestDoc()
+    with pytest.raises(NotCreateableException):
+        engine.create(doc)
