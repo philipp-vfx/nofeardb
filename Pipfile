@@ -12,6 +12,8 @@ factory-boy = "*"
 autopep8 = "==2.0.4"
 pylint = "==2.13.9"
 pytest-mock = "*"
+sphinx = "*"
+furo = "*"
 
 [requires]
 python_version = "3.6"
@@ -20,3 +22,4 @@ python_version = "3.6"
 test = "coverage run --source=./src -m pytest tests/"
 coverage = "coverage report -m"
 pylint = "pylint src"
+docs = "sphinx-build -M html docs/source/ docs/build/  -a"
