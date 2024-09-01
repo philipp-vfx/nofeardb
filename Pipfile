@@ -3,8 +3,6 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
-[packages]
-
 [dev-packages]
 pytest = "*"
 coverage = "*"
@@ -14,6 +12,7 @@ pylint = "==2.13.9"
 pytest-mock = "*"
 sphinx = "*"
 furo = "*"
+sphinx-rtd-theme = "*"
 
 [requires]
 python_version = "3.6"
