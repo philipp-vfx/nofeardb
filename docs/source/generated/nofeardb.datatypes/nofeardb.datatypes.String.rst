@@ -3,23 +3,8 @@
 
 .. currentmodule:: nofeardb.datatypes
 
-.. autoclass:: String
+.. autoclass:: nofeardb.datatypes.String
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-   
-   .. automethod:: __init__
-
-   
-   .. rubric:: Methods
-
-   .. autosummary::
-   
-      ~String.__init__
-      ~String.cast
-      ~String.deserialize
-      ~String.serialize
-   
-   
-
-   
-   
-   

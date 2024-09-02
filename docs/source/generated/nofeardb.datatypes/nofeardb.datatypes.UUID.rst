@@ -3,23 +3,8 @@
 
 .. currentmodule:: nofeardb.datatypes
 
-.. autoclass:: UUID
+.. autoclass:: nofeardb.datatypes.UUID
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-   
-   .. automethod:: __init__
-
-   
-   .. rubric:: Methods
-
-   .. autosummary::
-   
-      ~UUID.__init__
-      ~UUID.cast
-      ~UUID.deserialize
-      ~UUID.serialize
-   
-   
-
-   
-   
-   

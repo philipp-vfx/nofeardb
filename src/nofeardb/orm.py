@@ -30,7 +30,12 @@ class Document:
 
     @classmethod
     def get_document_name(cls):
-        """get the name by which the document is identified in the database"""
+        """
+        Get the name by which the document is identified in the database
+
+        :return: Name of the document
+        :rtype: str
+        """
 
         if cls.__documentname__ is not None:
             return cls.__documentname__
@@ -38,7 +43,14 @@ class Document:
         return cls.__name__.lower()
 
     def set_relationship_added(self, rel_name: str, document: 'Document'):
-        """Set a relationship in added state"""
+        """
+        Set a relationship in added state
+
+        :param rel_name: Name of the relationship
+        :type rel_name: str
+        :param document: Document which should be related
+        :type document: :class:`Document`
+        """
         if rel_name in self.__removed_relationships__:
             if isinstance(self.__removed_relationships__[rel_name], list):
                 if document in self.__removed_relationships__[rel_name]:
@@ -52,7 +64,14 @@ class Document:
                 self.__added_relationships__[rel_name].append(document)
 
     def set_relationship_removed(self, rel_name: str, document: 'Document'):
-        """Set a relationsip in removed state"""
+        """
+        Set a relationsip in removed state
+
+        :param rel_name: Name of the relationship
+        :type rel_name: str
+        :param document: Document which is related
+        :type document: :class:`Document`
+        """
         if rel_name in self.__added_relationships__:
             if isinstance(self.__added_relationships__[rel_name], list):
                 if document in self.__added_relationships__[rel_name]:
@@ -66,7 +85,7 @@ class Document:
                 self.__removed_relationships__[rel_name].append(document)
 
     def create_snapshot(self):
-        """creates a snapshot of the data for restore purposes"""
+        """Creates a snapshot of the data for restore purposes"""
 
         for name, attr in vars(self.__class__).items():
             if isinstance(attr, Field) or isinstance(attr, Relationship):
@@ -77,7 +96,10 @@ class Document:
 
     def validate(self) -> List[str]:
         """
-        validates the object and returns a list of found errors
+        Validates the object and returns a list of found errors
+
+        :return: List of all found errors
+        :rtype: str, list
         """
         errors = []
         for name, attr in vars(self.__class__).items():
@@ -93,7 +115,7 @@ class Document:
         return errors
 
     def reset(self):
-        """restores the last snapshot"""
+        """Restores the last snapshot"""
 
         for name, value in self.__data_snapshot__.items():
             setattr(self, name, value)
@@ -102,7 +124,10 @@ class Document:
 
     def get_hash(self):
         """
-        calculates the hash value for the document
+        Calculates the hash value for the document
+
+        :return: Hash value for all attributes
+        :rtype: str
         """
         m = hashlib.md5()
 

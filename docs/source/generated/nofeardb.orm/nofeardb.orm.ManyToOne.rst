@@ -3,24 +3,8 @@
 
 .. currentmodule:: nofeardb.orm
 
-.. autoclass:: ManyToOne
+.. autoclass:: nofeardb.orm.ManyToOne
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-   
-   .. automethod:: __init__
-
-   
-   .. rubric:: Methods
-
-   .. autosummary::
-   
-      ~ManyToOne.__init__
-      ~ManyToOne.back_populate_reverse_relationship
-      ~ManyToOne.clear_reverse_relationship
-      ~ManyToOne.get_relation
-      ~ManyToOne.lazy_load_documents
-   
-   
-
-   
-   
-   

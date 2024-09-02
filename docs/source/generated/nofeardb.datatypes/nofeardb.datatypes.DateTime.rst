@@ -3,23 +3,8 @@
 
 .. currentmodule:: nofeardb.datatypes
 
-.. autoclass:: DateTime
+.. autoclass:: nofeardb.datatypes.DateTime
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-   
-   .. automethod:: __init__
-
-   
-   .. rubric:: Methods
-
-   .. autosummary::
-   
-      ~DateTime.__init__
-      ~DateTime.cast
-      ~DateTime.deserialize
-      ~DateTime.serialize
-   
-   
-
-   
-   
-   

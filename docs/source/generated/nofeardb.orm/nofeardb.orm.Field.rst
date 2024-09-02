@@ -3,20 +3,8 @@
 
 .. currentmodule:: nofeardb.orm
 
-.. autoclass:: Field
+.. autoclass:: nofeardb.orm.Field
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-   
-   .. automethod:: __init__
-
-   
-   .. rubric:: Methods
-
-   .. autosummary::
-   
-      ~Field.__init__
-   
-   
-
-   
-   
-   

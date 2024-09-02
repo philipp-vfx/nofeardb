@@ -3,23 +3,8 @@
 
 .. currentmodule:: nofeardb.datatypes
 
-.. autoclass:: Boolean
+.. autoclass:: nofeardb.datatypes.Boolean
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-   
-   .. automethod:: __init__
-
-   
-   .. rubric:: Methods
-
-   .. autosummary::
-   
-      ~Boolean.__init__
-      ~Boolean.cast
-      ~Boolean.deserialize
-      ~Boolean.serialize
-   
-   
-
-   
-   
-   

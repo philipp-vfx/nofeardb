@@ -3,23 +3,8 @@
 
 .. currentmodule:: nofeardb.engine
 
-.. autoclass:: DocumentLock
+.. autoclass:: nofeardb.engine.DocumentLock
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-   
-   .. automethod:: __init__
-
-   
-   .. rubric:: Methods
-
-   .. autosummary::
-   
-      ~DocumentLock.__init__
-      ~DocumentLock.is_locked
-      ~DocumentLock.lock
-      ~DocumentLock.release
-   
-   
-
-   
-   
-   

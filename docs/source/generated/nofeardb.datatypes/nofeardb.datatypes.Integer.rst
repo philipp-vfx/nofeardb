@@ -3,23 +3,8 @@
 
 .. currentmodule:: nofeardb.datatypes
 
-.. autoclass:: Integer
+.. autoclass:: nofeardb.datatypes.Integer
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-   
-   .. automethod:: __init__
-
-   
-   .. rubric:: Methods
-
-   .. autosummary::
-   
-      ~Integer.__init__
-      ~Integer.cast
-      ~Integer.deserialize
-      ~Integer.serialize
-   
-   
-
-   
-   
-   
