@@ -51,3 +51,14 @@ nofeardb.query
    :nosignatures:
 
    nofeardb.query.Query
+
+
+nofeardb.exceptions
+-------------------
+
+.. autosummary::
+   :toctree: generated/nofeardb.exceptions
+   :caption: nofeardb.exceptions
+   :nosignatures:
+
+   nofeardb.exceptions.NotCreateableException

@@ -290,7 +290,13 @@ class StorageEngine:
                 os.makedirs(base_path)
 
     def create(self, doc: Document):
-        """create the document"""
+        """
+        create the document (and persist changes to all related documents)
+        
+        :param doc: document to create.
+        :type doc: :class:`nofeardb.orm.Document`
+        :raise nofeardb.exceptions.NotCreateableException: If the document can not be created.
+        """
         if doc.__status__ is not DocumentStatus.NEW:
             raise RuntimeError(
                 "The document is not new. Only new documents can be created")

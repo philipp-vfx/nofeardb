@@ -4,7 +4,7 @@ Getting Started
 Installation
 ------------
 
-NofearDB can be simply installed by running:
+NofearDB can be installed by running:
 
 .. code-block:: console
 
@@ -13,7 +13,7 @@ NofearDB can be simply installed by running:
 First Document
 -----------------
 
-In order to write data to the database and read it again later, it is necessary to define which data is to be saved and in what form. The first step is to define this. In NofearDB this can be done with “Documents”. A document describes the structure of a data record for a specific data construct. For example, let's assume that we want to store employee data for a company in a database. An employee has a name, a number and a date on which they were hired. A corresponding document could look like this:
+Just like other NoSQL databases, NofearDB also follows a document-based approach. Data records are stored as JSON files (so-called documents) on the hard disk. However, since NofearDB is schema-consistent, unlike other NoSQL databases, it is first necessary to define which data should be stored in a document. For example, let's assume that we want to store employee data for a company in a database. An employee has a name, a number and a date on which they were hired. A corresponding document class could look like this:
 
 .. code-block:: python
 
@@ -28,8 +28,69 @@ In order to write data to the database and read it again later, it is necessary 
         number = Field(Integer)
         hired = Field(DateTime)
 
-As you can see a document is simply a Python class which inherits from :class:`nofeardb.orm.Document`. To define which data to store we can simply assign :class:`nofeardb.orm.Field` to class attributes.
+As you can see documents are simply defined as Python classes which inherits from :class:`nofeardb.orm.Document`. All class attributes that are assigned the descriptor :class:`nofeardb.orm.Field` are later saved under the same name in the document. The Field descriptor expects at least a datatype of type :class:`nofeardb.datatypes`. This ensures, that data is serialized and deserialized in the correct way. The "nullable" attribute determines whether an attribute may be None.
 
 .. note::
 
-    the class attribute "__documentname__" defines the name of the document. All documents of this kind are stored under this name. In this case it is obsolote since the class name is evaluated to the name in lower case as default if __documentname__ is not provided.
+    The class attribute __documentname__ sets the global document name. All documents of this type are saved under this name. In the example above, however, __documentname__ could also be omitted, as in this case the name is automatically set to the name of the document class in lower case (here "employee").
+
+You now have the first document which can be persistet to the hard drive.
+
+
+Persisting documents
+--------------------
+
+A document itself is only the definition of a data structure. To actually store and load data in the database, it requires an instance of :class:`nofeardb.engine.StorageEngine`. StorageEngine is the core of NofearDB and acts as an interface between the data on disk and the application layer. The first step is to create an instance:
+
+.. code-block:: python
+
+    from nofeardb.engine import StorageEngine
+
+    engine = StorageEngine("/path/to/db")
+
+StorageEngine expects only one argument and that is the path under which the database is to be created. The next step is to register all document types we wan to use.
+
+.. code-block:: python
+
+    engine.register_models([Employee])
+
+After that saving employees to the database is that simple:
+
+.. code-block:: python
+
+    import datetime
+
+    employee = Employee()
+    employee.name = "Max"
+    employee.number = 1
+    employee.hired = datetime.datetime.now()
+
+    engine.create(employee)
+
+Reading documents
+--------------------
+
+With our StorageEngine instance we can now query employees from the database:
+
+.. code-block:: python
+
+    employees = engine.read(Employee).all()
+
+Returned is a list of Employee instances, each filled with the corresponding data.
+
+
+Updating documents
+--------------------
+
+lets say we want to update an already persisted document. As expected this is also done by utilizing the StorageEngine:
+
+.. code-block:: python
+
+    employee_to_update = engine.read(Employee).first()
+    employee_to_update.name = "Paul"
+
+    engine.update(employee_to_update)
+
+The next time the employee is queried it will have the updated value for the name.
+
+Thats it for now. These few lines of Code already allow very basic persisting and querying of data. But there are even more complex things you can do, which where described in the next chapters.
