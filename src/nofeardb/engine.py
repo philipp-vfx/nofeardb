@@ -347,6 +347,19 @@ class StorageEngine:
     def delete(self, doc: Document):
         """delete the document"""
 
+        if doc.__status__ is DocumentStatus.NEW:
+            raise RuntimeError(
+                "The document is not persisted. Please run \'create\' before.")
+
+        if doc.__status__ is DocumentStatus.DEL:
+            raise RuntimeError("Deleted documents cannot be deleted again")
+
+        to_delete = self.resolve_dependencies(doc, scope="delete")
+        all_dependencies = self.resolve_dependencies(doc)
+        if self._check_all_documents_can_be_written(all_dependencies):
+            locks = self._lock_docs(all_dependencies)
+            self._unlock_docs(locks)
+
     def _get_doc_class_by_name(self, name) -> type:
         for model in self._models:
             if model.__name__ == name:
