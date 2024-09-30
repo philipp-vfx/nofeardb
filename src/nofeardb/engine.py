@@ -108,7 +108,7 @@ class StorageEngine:
         return json_to_update
 
     def resolve_dependencies(
-        self, doc: Document, dependencies: List[Document] = []
+        self, doc: Document, scope: str = None
     ) -> List[Document]:
         """creates a stack with depending documents"""
 
@@ -123,17 +123,19 @@ class StorageEngine:
 
             for name, attr in vars(child.__class__).items():
                 if isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
-                    for rel in getattr(child, name):
-                        if rel not in children and rel not in dependencies:
-                            children.append(rel)
+                    if scope is None or scope in attr.cascade:
+                        for rel in getattr(child, name):
+                            if rel not in children and rel not in dependencies:
+                                children.append(rel)
 
                 if isinstance(attr, ManyToOne):
-                    if getattr(child, name) is not None:
-                        if (
-                            getattr(child, name) not in children
-                            and getattr(child, name) not in dependencies
-                        ):
-                            children.append(getattr(child, name))
+                    if scope is None or scope in attr.cascade:
+                        if getattr(child, name) is not None:
+                            if (
+                                getattr(child, name) not in children
+                                and getattr(child, name) not in dependencies
+                            ):
+                                children.append(getattr(child, name))
 
         return dependencies
 
@@ -292,7 +294,7 @@ class StorageEngine:
     def create(self, doc: Document):
         """
         create the document (and persist changes to all related documents)
-        
+
         :param doc: document to create.
         :type doc: :class:`nofeardb.orm.Document`
         :raise nofeardb.exceptions.NotCreateableException: If the document can not be created.

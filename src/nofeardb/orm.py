@@ -159,10 +159,11 @@ class Relationship(ABC):
     Descriptor for a relationship between documents
     """
 
-    def __init__(self, class_name, back_populates=None):
+    def __init__(self, class_name, back_populates=None, cascade: List[str] = None):
         self._name = None
         self._rel_class_name = class_name
         self._back_populates = back_populates
+        self.cascade = cascade or []
 
     def __set_name__(self, owner, name):
         self._name = name

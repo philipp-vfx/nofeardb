@@ -438,6 +438,66 @@ def test_resolve_dependencies_unidirectional():
     assert engine.resolve_dependencies(reldoc1) == [reldoc1]
 
 
+def test_resolving_dependencies_with_scope():
+    class TestDoc(Document):
+        __documentname__ = "test_doc"
+
+        test_rel_docs = OneToMany(
+            "TestRelDoc",
+            back_populates="test_doc",
+            cascade=["delete"]
+        )
+
+    class TestRelDoc(Document):
+        __documentname__ = "rel_test_doc"
+
+        test_doc = ManyToOne(
+            "TestDoc",
+            back_populates="test_rel_docs")
+
+        many_docs = ManyToMany(
+            "TestRelDoc2",
+            back_populates="many_docs"
+        )
+
+    class TestRelDoc2(Document):
+        many_docs = ManyToMany(
+            "TestRelDoc",
+            back_populates="many_docs"
+        )
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc, TestRelDoc, TestRelDoc2])
+
+    doc1 = TestDoc()
+    reldoc1 = TestRelDoc()
+    reldoc2 = TestRelDoc()
+    reldoc3 = TestRelDoc2()
+    reldoc4 = TestRelDoc2()
+
+    doc1.test_rel_docs = [reldoc1, reldoc2]
+    reldoc1.many_docs = [reldoc3]
+    reldoc2.many_docs = [reldoc4]
+
+    assert len(engine.resolve_dependencies(doc1)) == 5
+    assert doc1 in engine.resolve_dependencies(doc1)
+    assert reldoc1 in engine.resolve_dependencies(doc1)
+    assert reldoc2 in engine.resolve_dependencies(doc1)
+    assert reldoc3 in engine.resolve_dependencies(doc1)
+    assert reldoc4 in engine.resolve_dependencies(doc1)
+
+    assert len(engine.resolve_dependencies(doc1, scope="delete")) == 3
+    assert doc1 in engine.resolve_dependencies(doc1, scope="delete")
+    assert reldoc1 in engine.resolve_dependencies(doc1, scope="delete")
+    assert reldoc2 in engine.resolve_dependencies(doc1, scope="delete")
+
+    assert len(engine.resolve_dependencies(reldoc3, scope="delete")) == 1
+    assert reldoc3 in engine.resolve_dependencies(reldoc3, scope="delete")
+
+    assert len(engine.resolve_dependencies(doc1, scope="nonexisting")) == 1
+    assert doc1 in engine.resolve_dependencies(doc1, scope="nonexisting")
+
+
 def test_lock_before_write(mocker):
     class TestDoc(Document):
         pass
