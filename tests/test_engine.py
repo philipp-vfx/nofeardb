@@ -731,6 +731,33 @@ def test_create_and_update_doc(mocker):
     assert patched_write.call_count == 2
 
 
+def test_status_update_on_create(mocker):
+    class TestDoc(Document):
+        pass
+
+    doc = TestDoc()
+
+    mocker.patch.object(
+        StorageEngine, 'resolve_dependencies', return_value=[doc])
+    mocker.patch.object(
+        StorageEngine, '_check_all_documents_can_be_written', return_value=True)
+    mocker.patch.object(
+        StorageEngine, '_lock_docs')
+    mocker.patch.object(
+        StorageEngine, '_unlock_docs')
+    mocker.patch.object(
+        StorageEngine, 'write_json')
+    mocker.patch('os.makedirs')
+    mocker.patch('os.path.exists', return_value=False)
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc])
+
+    assert doc.__status__ == DocumentStatus.NEW
+    engine.create(doc)
+    assert doc.__status__ == DocumentStatus.SYNC
+
+
 def test_read_all_documents_of_type(mocker):
     class TestDoc(Document):
 

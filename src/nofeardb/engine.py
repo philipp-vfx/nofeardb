@@ -341,6 +341,7 @@ class StorageEngine:
                     or dep.__status__ == DocumentStatus.MOD
                 ):
                     self.write_json(dep)
+                    dep.__status__ = DocumentStatus.SYNC
 
             self._unlock_docs(locks)
 
@@ -364,6 +365,7 @@ class StorageEngine:
                     or dep.__status__ == DocumentStatus.MOD
                 ):
                     self.write_json(dep)
+                    dep.__status__ = DocumentStatus.SYNC
 
             self._unlock_docs(locks)
 
