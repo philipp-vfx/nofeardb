@@ -1036,3 +1036,95 @@ def test_create_invalid_entity(mocker):
     doc = TestDoc()
     with pytest.raises(NotCreateableException):
         engine.create(doc)
+
+
+def test_delete_document_normal(mocker):
+    class TestDoc(Document):
+
+        rel = ManyToOne("RelDoc", back_populates="rels")
+
+    class TestDoc2(Document):
+
+        rel = ManyToOne("RelDoc", back_populates="rels")
+
+    class RelDoc(Document):
+        rels = OneToMany("TestDoc", back_populates="rel", cascade="delete")
+        rels2 = OneToMany("TestDoc2", back_populates="rel")
+
+    doc1 = TestDoc()
+    doc2 = TestDoc()
+    doc3 = TestDoc2()
+    rel = RelDoc()
+
+    rel.rels = [doc1, doc2]
+    rel.rels2 = [doc3]
+    rel.__status__ = DocumentStatus.SYNC
+    doc1.__status__ = DocumentStatus.SYNC
+    doc2.__status__ = DocumentStatus.SYNC
+    doc3.__status__ = DocumentStatus.SYNC
+    rel.__status__ = DocumentStatus.SYNC
+
+    delete_json_mock = mocker.patch.object(StorageEngine, 'delete_json')
+    write_json_mock = mocker.patch.object(StorageEngine, 'write_json')
+    _lock_docs_mock = mocker.patch.object(
+        StorageEngine, '_lock_docs', return_value=[])
+    mocker.patch.object(StorageEngine, '_unlock_docs')
+    mocker.patch.object(
+        StorageEngine, '_check_all_documents_can_be_written', return_value=True)
+
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc, RelDoc])
+
+    assert doc3.rel == rel
+
+    engine.delete(rel)
+
+    assert delete_json_mock.call_count == 3
+    assert _lock_docs_mock.call_count == 1
+    assert write_json_mock.call_count == 1
+    delete_json_mock.assert_called_with(doc1)
+    write_json_mock.assert_called_with(doc3)
+    assert rel.__status__ == DocumentStatus.DEL
+    assert doc1.__status__ == DocumentStatus.DEL
+    assert doc2.__status__ == DocumentStatus.DEL
+    assert doc3.__status__ == DocumentStatus.MOD
+    assert doc3.rel == None
+
+
+def test_delete_document_json_data(mocker):
+    class TestDoc(Document):
+        pass
+
+    doc = TestDoc()
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc])
+
+    test_base_path = os.path.normpath("/test/path/to/entity")
+    test_name = "testid_testhash.json"
+
+    mocker_remove = mocker.patch('os.remove')
+    mocker.patch.object(
+        StorageEngine, 'get_doc_basepath', return_value=test_base_path)
+    mocker.patch.object(
+        StorageEngine, '_get_existing_document_file_name', return_value=test_name)
+
+    engine.delete_json(doc)
+    mocker_remove.assert_called_with(
+        os.path.join(test_base_path, test_name))
+
+
+def test_delete_document_wrong_status(mocker):
+    class TestDoc(Document):
+        pass
+
+    doc = TestDoc()
+    engine = StorageEngine("test/path")
+    engine.register_models([TestDoc])
+
+    with pytest.raises(RuntimeError):
+        doc.__status__ = DocumentStatus.DEL
+        engine.delete(doc)
+
+    with pytest.raises(RuntimeError):
+        doc.__status__ = DocumentStatus.NEW
+        engine.delete(doc)

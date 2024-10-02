@@ -139,6 +139,18 @@ class StorageEngine:
 
         return dependencies
 
+    def _remove_dependencies(self, doc: Document):
+        """
+        clears all direct relationships on the document
+        """
+
+        for name, attr in vars(doc.__class__).items():
+            if isinstance(attr, ManyToMany) or isinstance(attr, OneToMany):
+                setattr(doc, name, [])
+
+            if isinstance(attr, ManyToOne):
+                setattr(doc, name, None)
+
     def get_doc_basepath(self, doc: Document):
         """get the base file path for the document type"""
         return os.path.join(self._root, doc.get_document_name())
@@ -264,7 +276,7 @@ class StorageEngine:
 
     def write_json(self, doc: Document):
         """writes the document data to disk"""
-        if doc.__status__ != DocumentStatus.SYNC:
+        if doc.__status__ != DocumentStatus.SYNC and doc.__status__ != DocumentStatus.DEL:
             previous_file = self._get_existing_document_file_name(doc)
             previous_data = self._get_document_data(previous_file)
             data_to_write = None
@@ -284,6 +296,17 @@ class StorageEngine:
                 os.remove(previous_file)
 
             os.rename(doc_temp_path, doc_path)
+
+    def delete_json(self, doc: Document):
+        """
+        deletes document data from disk
+        """
+
+        if doc.__status__ != DocumentStatus.DEL:
+            base_path = self.get_doc_basepath(doc)
+            doc_name = self._get_existing_document_file_name(doc)
+            doc_path = os.path.join(base_path, doc_name)
+            os.remove(doc_path)
 
     def _create_base_pathes(self):
         for doc in self._models:
@@ -358,6 +381,22 @@ class StorageEngine:
         all_dependencies = self.resolve_dependencies(doc)
         if self._check_all_documents_can_be_written(all_dependencies):
             locks = self._lock_docs(all_dependencies)
+
+            for dep in to_delete:
+                if (
+                    dep.__status__ != DocumentStatus.NEW
+                ):
+                    self.delete_json(dep)
+
+                self._remove_dependencies(dep)
+                dep.__status__ = DocumentStatus.DEL
+
+            for dep in all_dependencies:
+                if (
+                    dep not in to_delete
+                ):
+                    self.write_json(dep)
+
             self._unlock_docs(locks)
 
     def _get_doc_class_by_name(self, name) -> type:

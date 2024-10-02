@@ -468,6 +468,8 @@ class OneToMany(Relationship):
                 setattr(related_doc, self._back_populates + "_rel", None)
                 related_doc.set_relationship_removed(
                     self._back_populates, instance)
+                if related_doc.__status__ == DocumentStatus.SYNC:
+                    related_doc.__status__ = DocumentStatus.MOD
 
     def back_populate_reverse_relationship(self, instance):
         if self._back_populates is not None:

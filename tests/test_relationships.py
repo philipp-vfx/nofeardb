@@ -187,6 +187,32 @@ def test_bidirectional_many_to_one_status_update():
     assert relDoc.__status__ == DocumentStatus.MOD
     assert relDoc2.__status__ == DocumentStatus.MOD
 
+    doc.__status__ = DocumentStatus.SYNC
+    relDoc.__status__ = DocumentStatus.SYNC
+    relDoc2.__status__ = DocumentStatus.SYNC
+
+    assert doc.test_rel_docs[0] == relDoc2
+    doc.test_rel_docs = []
+    assert doc.__status__ == DocumentStatus.MOD
+    assert relDoc.__status__ == DocumentStatus.SYNC
+    assert relDoc2.__status__ == DocumentStatus.MOD
+
+
+def test_bidirectional_many_to_one_reverse_status_update():
+    doc = TestDoc()
+    doc.__status__ = DocumentStatus.SYNC
+    relDoc = TestRelDoc()
+    relDoc.__status__ = DocumentStatus.SYNC
+
+    relDoc.test_doc = doc
+    assert doc.__status__ == DocumentStatus.MOD
+
+    relDoc.__status__ = DocumentStatus.SYNC
+    doc.__status__ = DocumentStatus.SYNC
+
+    setattr(relDoc, "test_doc", None)
+    assert doc.__status__ == DocumentStatus.MOD
+
 
 def test_bidirectional_one_to_many_status_update():
     doc = TestDoc()
