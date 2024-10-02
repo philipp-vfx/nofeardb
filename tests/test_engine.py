@@ -1048,7 +1048,7 @@ def test_delete_document_normal(mocker):
         rel = ManyToOne("RelDoc", back_populates="rels")
 
     class RelDoc(Document):
-        rels = OneToMany("TestDoc", back_populates="rel", cascade="delete")
+        rels = OneToMany("TestDoc", back_populates="rel", cascade=["delete"])
         rels2 = OneToMany("TestDoc2", back_populates="rel")
 
     doc1 = TestDoc()
