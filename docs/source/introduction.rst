@@ -4,6 +4,8 @@ Introduction
 What Is NofearDB?
 -----------------
 
+NofearDB is a database management system (DBMS) that holds and manages relational data in a document oriented database. Without using SQL it provides a rich ORM toolset for CRUD operations.
+
 Why another database system?
 ----------------------------
 
@@ -15,3 +17,8 @@ Who is NofearDB for?
 --------------------
 
 All these advantages come at a price: NofearDB causes a large number of file system accesses. Since reading and writing from a file system is a very slow operation, NofearDB can never achieve the performance of a conventional database system. Many optimizations have been built in to make reading from the database as performant as possible, but NofearDB is still more suitable for smaller amounts of data. Good results have been achieved for several thousand data records, but the time required for read and write operations increases significantly for many entries.
+
+Who is NofearDB not for?
+-------------------------
+
+NofearDB is not 100% ACID compliant. Therefore the use of NofearDB is not recommended for cirtical data or systems, that need to make sure the data they work on is always in an absolutly correct state. Also NofearDB does not support immutable data at the moment.

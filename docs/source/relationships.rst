@@ -57,3 +57,19 @@ When defined, relationships can be used just like other fields in the document:
     engine.create(employee)
 
 As you can see, the relationship can be assigned from both sides, as it is bidirectional. If employee is persisted, all pending changes to related documents are also persisted by default.
+
+Cascading
+----------
+
+Cascading is an option to define how related entities should behave during common CRUD operations. In NofearDB you can currently only define a cascading behavior for the “Delete” operation. “Create” and ‘Update’ are cascaded by default to ensure consistent data in the database at all times. If the option cascade=[“delete”] is set in the relationship descriptor, all entities that are linked to the document via this relationship are also deleted. In the example shown above, paychecks only make sense if the corresponding employee still exists. The example can therefore be extended as follows:
+
+.. code-block:: python
+
+    class Employee(Document):
+
+        name = Field(String, nullable=False)
+        number = Field(Integer)
+        hired = Field(DateTime)
+        paychecks = OneToMany("Paycheck", back_populates="employee", cascade=["delete"])
+
+Now when an employee is deleted, all paychecks related to this employee are deleted as well. On the other side, if a paycheck is deleted, the relationship on the employee is updated, but the employee stays persisted in the database. This applies as long as there is no cascade option for the employee specified on the paycheck as well.

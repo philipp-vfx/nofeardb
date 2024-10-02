@@ -15,6 +15,7 @@ Welcome to NofearDB, the NoSQL database system without the headache.
    introduction
    getting_started
    relationships
+   advanced_use
    api
 
 

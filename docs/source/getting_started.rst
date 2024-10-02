@@ -78,11 +78,17 @@ With our StorageEngine instance we can now query employees from the database:
 
 Returned is a list of Employee instances, each filled with the corresponding data.
 
+.. note::
+
+    Please be aware, that read instances of a document are not updated autoamtically when a change is made to the document from somewhere else.
+    The only way to be sure to be up to date with your instaces is to read them before using them. Also be aware of the following:
+    Currently every call to engine.read() creates fresh instances, which are not synchronized with already existing instances of the document.
+
 
 Updating documents
 --------------------
 
-lets say we want to update an already persisted document. As expected this is also done by utilizing the StorageEngine:
+Lets say we want to update an already persisted document. As expected this is also done by utilizing the StorageEngine:
 
 .. code-block:: python
 
@@ -92,5 +98,19 @@ lets say we want to update an already persisted document. As expected this is al
     engine.update(employee_to_update)
 
 The next time the employee is queried it will have the updated value for the name.
+
+
+Deleting documents
+--------------------
+
+Now if you want to remove a document from the database it can be done like this:
+
+.. code-block:: python
+
+    employee_to_delete = engine.read(Employee).first()
+
+    engine.delete(employee_to_delete)
+
+This operation also updates the relationships on related documents. Therefore in order to success, all documents that are related to the document which should be deleted must be writable. I everything works, the data of the document is physically removed from the harddrive.
 
 Thats it for now. These few lines of Code already allow very basic persisting and querying of data. But there are even more complex things you can do, which where described in the next chapters.
