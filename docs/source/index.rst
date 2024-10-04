@@ -6,16 +6,17 @@
 Welcome to NofearDB's documentation!
 ====================================
 
-Welcome to NofearDB, the NoSQL database system without the headache.
+Welcome to NofearDB, the NoSQL database management system without the headache.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
 
    introduction
    getting_started
    relationships
    advanced_use
+   technical_background
    api
 
 

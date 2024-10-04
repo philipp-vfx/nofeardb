@@ -53,6 +53,29 @@ nofeardb.query
    nofeardb.query.Query
 
 
+.. _RST Expressions:
+
+nofeardb.expr
+--------------
+
+.. autosummary::
+   :toctree: generated/nofeardb.expr
+   :caption: nofeardb.expr
+   :nosignatures:
+
+   nofeardb.expr.eq
+   nofeardb.expr.neq
+   nofeardb.expr.lt
+   nofeardb.expr.lte
+   nofeardb.expr.gt
+   nofeardb.expr.gte
+   nofeardb.expr.is_in
+   nofeardb.expr.is_
+   nofeardb.expr.is_not
+   nofeardb.expr.and_
+   nofeardb.expr.or_
+
+
 nofeardb.exceptions
 -------------------
 

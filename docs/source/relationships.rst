@@ -58,6 +58,10 @@ When defined, relationships can be used just like other fields in the document:
 
 As you can see, the relationship can be assigned from both sides, as it is bidirectional. If employee is persisted, all pending changes to related documents are also persisted by default.
 
+.. note::
+
+    Relationships are always queried lazy by design. That means that on query only the related ID's are queried and associated with empty document instances. When needed, this instances are filled with actual data on demand. This is to prevent from long time queries on heavy relational systems.
+
 Cascading
 ----------
 

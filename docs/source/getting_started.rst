@@ -111,6 +111,6 @@ Now if you want to remove a document from the database it can be done like this:
 
     engine.delete(employee_to_delete)
 
-This operation also updates the relationships on related documents. Therefore in order to success, all documents that are related to the document which should be deleted must be writable. I everything works, the data of the document is physically removed from the harddrive.
+This operation also updates the relationships on related documents. Therefore in order to success, all documents that are related to the document which should be deleted must be writable. If everything works, the data of the document is physically removed from the harddrive.
 
 Thats it for now. These few lines of Code already allow very basic persisting and querying of data. But there are even more complex things you can do, which where described in the next chapters.
