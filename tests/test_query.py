@@ -19,9 +19,9 @@ def test_query_where(mocker):
         doc = TestDoc()
         doc.int_field = i
         docs.append(doc)
-        
+
     mock_result = Query(docs)
-    
+
     mocker.patch.object(
         StorageEngine, 'read', return_value=mock_result)
 
@@ -32,10 +32,11 @@ def test_query_where(mocker):
             expr.gt("int_field", 3)
         )
     ).all()
-    
+
     assert len(result) == 1
     assert result[0].int_field == 4
-    
+
+
 def test_query_first(mocker):
     class TestDoc(Document):
         uuid = Field(UUID, primary_key=True)
@@ -46,17 +47,18 @@ def test_query_first(mocker):
         doc = TestDoc()
         doc.int_field = i
         docs.append(doc)
-        
+
     mock_result = Query(docs)
-    
+
     mocker.patch.object(
         StorageEngine, 'read', return_value=mock_result)
 
     engine = StorageEngine("test/path")
     result = engine.read(TestDoc).first()
-    
+
     assert result.int_field == 0
-    
+
+
 def test_query_last(mocker):
     class TestDoc(Document):
         uuid = Field(UUID, primary_key=True)
@@ -67,34 +69,35 @@ def test_query_last(mocker):
         doc = TestDoc()
         doc.int_field = i
         docs.append(doc)
-        
+
     mock_result = Query(docs)
-    
+
     mocker.patch.object(
         StorageEngine, 'read', return_value=mock_result)
 
     engine = StorageEngine("test/path")
     result = engine.read(TestDoc).last()
-    
+
     assert result.int_field == 9
-    
+
+
 def test_query_empty_result(mocker):
     class TestDoc(Document):
         uuid = Field(UUID, primary_key=True)
         int_field = Field(Integer)
 
     docs = []
-        
+
     mock_result = Query(docs)
-    
+
     mocker.patch.object(
         StorageEngine, 'read', return_value=mock_result)
 
     engine = StorageEngine("test/path")
     with pytest.raises(NoResultFoundException):
         engine.read(TestDoc).last()
-        
+
     with pytest.raises(NoResultFoundException):
         engine.read(TestDoc).first()
-        
+
     assert engine.read(TestDoc).all() == []

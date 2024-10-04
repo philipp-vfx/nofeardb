@@ -781,6 +781,7 @@ def test_read_all_documents_of_type(mocker):
     assert read_doc.attr1 == doc.attr1
     assert read_doc.attr2 == doc.attr2
     assert read_doc != doc
+    assert read_doc.__status__ == DocumentStatus.SYNC
 
 
 def test_read_all_documents_of_type_custom_id(mocker):
