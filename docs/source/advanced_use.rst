@@ -47,7 +47,7 @@ Exceptions are the _and and _or operators. These enable two expressions to be lo
     import nofeardb.expr as expr
 
     helgas = engine.read(Employee).where(
-            expr._and(
+            expr.and_(
                 expr.eq("name", "Helga"),
                 expr.gt("number", 38)
             )
