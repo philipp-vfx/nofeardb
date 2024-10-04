@@ -47,8 +47,8 @@ When defined, relationships can be used just like other fields in the document:
     paycheck1 = Paycheck()
     paycheck1.payday = datetime.datetime(2024,3,31)
 
-    paycheck1 = Paycheck()
-    paycheck1.payday = datetime.datetime(2024,4,30)
+    paycheck2 = Paycheck()
+    paycheck2.payday = datetime.datetime(2024,4,30)
 
     employee.paychecks.append(paycheck1)
 

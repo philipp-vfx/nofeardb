@@ -452,9 +452,9 @@ class StorageEngine:
                     rel_doc.__removed_relationships__ = {}
                     rel_doc.__engine__ = self
 
-                doc.__added_relationships__ = {}
-                doc.__removed_relationships__ = {}
-                doc.__status__ = DocumentStatus.SYNC
+        doc.__added_relationships__ = {}
+        doc.__removed_relationships__ = {}
+        doc.__status__ = DocumentStatus.SYNC
 
     def lazy_load(self, doc: Document):
         """executes lazy loading for docs that are marked as LAZY"""
