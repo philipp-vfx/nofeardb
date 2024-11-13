@@ -7,6 +7,8 @@ Engine Classes
 import os
 import json
 import uuid
+import threading
+import time
 from typing import List
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
@@ -482,7 +484,8 @@ class StorageEngine:
     def read(self, doc_type: type) -> Query:
         """read the documents of the specified type"""
         base_path = self.get_doc_basepath(doc_type)
-        document_jsons = os.listdir(base_path)
+        document_jsons = [d for d in os.listdir(
+            base_path) if os.path.splitext(d)[1] == ".json"]
 
         with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
             # Submit tasks for each JSON file
@@ -500,9 +503,15 @@ class StorageEngine:
 
 
 class DocumentLock:
-    """A Lock for a specific document"""
+    """
+    A Lock for a specific document
 
-    def __init__(self, storage_engine: StorageEngine, document: Document, expiration: int = 60):
+    :param expiration: time in seconds when a lock expires if no heartbeat is recieved. 
+    This helps in case a process crashes in order to avoid dead locks.
+    Locks are automatically refreshed before expiration if the process is still running and the lock is not released.
+    """
+
+    def __init__(self, storage_engine: StorageEngine, document: Document, expiration: int = 10):
         self._lock_id = uuid.uuid4()
         self.__document = document
         self.__engine = storage_engine
@@ -512,6 +521,43 @@ class DocumentLock:
         )
         self.__dateformat = '%Y-%m-%d %H:%M:%S'
         self.__expiration = expiration
+
+        self._heartbeat_stop_event = threading.Event()
+        self._heartbeat_thread = None
+
+    def _update_lock_timestamp(self):
+        last_executed = time.time()
+        while not self._heartbeat_stop_event.is_set():
+            now = time.time()
+            if (now - last_executed) >= (self.__expiration / 2):
+                last_executed = now
+                if os.path.exists(self.__lock_path):
+                    if self._is_owner() and not self._is_lock_expired():
+                        tmp_lock = self.__lock_path + ".tmp"
+                        with open(tmp_lock, "w", encoding="utf-8") as lock_file:
+                            now = datetime.now().strftime(self.__dateformat)
+                            lock_file.write("\n".join(
+                                [str(self._lock_id),
+                                    now
+                                 ]
+                            ))
+
+                        os.replace(tmp_lock, self.__lock_path)
+
+    def _start_heartbeat(self):
+        if self._heartbeat_thread is None:
+            self._heartbeat_thread = threading.Thread(
+                target=self._update_lock_timestamp, daemon=True)
+
+        if self._heartbeat_stop_event.is_set():
+            self._heartbeat_stop_event.clear()
+
+        if not self._heartbeat_thread.is_alive():
+            self._heartbeat_thread.start()
+
+    def _stop_heartbeat(self):
+        self._heartbeat_stop_event.set()
+        self._heartbeat_thread = None
 
     def _is_lock_expired(self):
         try:
@@ -544,17 +590,25 @@ class DocumentLock:
 
         self._cleanup_old_lock()
 
+        if not os.path.exists(os.path.dirname(self.__lock_path)):
+            os.makedirs(os.path.dirname(self.__lock_path))
+
         with open(self.__lock_path, "a", encoding="utf-8") as lock_file:
-            lock_file.writelines(
+            now = datetime.now().strftime(self.__dateformat)
+            lock_file.write("\n".join(
                 [str(self._lock_id),
-                 datetime.now().strftime(self.__dateformat)]
-            )
+                 now
+                 ]
+            ))
+
+            self._start_heartbeat()
 
     def release(self):
         """releases a document lock"""
         if os.path.exists(self.__lock_path):
             if self._is_owner() or self._is_lock_expired():
                 os.remove(self.__lock_path)
+                self._stop_heartbeat()
             else:
                 raise DocumentLockException(
                     "Cannot release a lock that is hold by someone else.")

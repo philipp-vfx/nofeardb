@@ -95,7 +95,8 @@ def test_createJsonAlreadyExistingId(mocker):
     doc2 = TestDoc()
     doc2.__id__ = "id2"
 
-    mocker.patch('os.listdir', return_value=["id1__hash1", "id2__hash2"])
+    mocker.patch('os.listdir', return_value=[
+                 "id1__hash1.json", "id2__hash2.json"])
     mocker.patch('os.path.exists', return_value=True)
 
     assert engine._check_all_documents_can_be_written([doc1]) == True
@@ -118,7 +119,8 @@ def test_updateJsonNotExistingId(mocker):
     doc2.__id__ = "id2"
     doc2.__status__ = DocumentStatus.MOD
 
-    mocker.patch('os.listdir', return_value=["id1__hash1", "id2__hash2"])
+    mocker.patch('os.listdir', return_value=[
+                 "id1__hash1.json", "id2__hash2.json"])
     mocker.patch('os.path.exists', return_value=True)
 
     assert engine._check_all_documents_can_be_written([doc2]) == True
@@ -770,12 +772,14 @@ def test_read_all_documents_of_type(mocker):
 
     mocker.patch.object(
         StorageEngine, '_read_document_from_disk', return_value={"id": str(doc.__id__), "attr1": "38", "attr2": "hello"})
-    mocker.patch('os.listdir', return_value=["first_document"])
+    mocker.patch('os.listdir', return_value=["first_document.json"])
 
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc])
 
     docs = engine.read(TestDoc).all()
+    print("DOCS:")
+    print(str(docs))
     read_doc = docs[0]
     assert read_doc.__id__ == doc.__id__
     assert read_doc.attr1 == doc.attr1
@@ -798,7 +802,7 @@ def test_read_all_documents_of_type_custom_id(mocker):
 
     mocker.patch.object(
         StorageEngine, '_read_document_from_disk', return_value={"attr1": str(id), "attr2": "hello"})
-    mocker.patch('os.listdir', return_value=["first_document"])
+    mocker.patch('os.listdir', return_value=["first_document.json"])
 
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc])
@@ -826,7 +830,7 @@ def test_read_all_documents_relationships(mocker):
 
     mocker.patch.object(
         StorageEngine, '_read_document_from_disk', return_value={"rel": [str(rel.__id__)]})
-    mocker.patch('os.listdir', return_value=["first_document"])
+    mocker.patch('os.listdir', return_value=["first_document.json"])
 
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc, RelDoc])
@@ -861,7 +865,7 @@ def test_load_relation_unregistered_doctype(mocker):
 
     mocker.patch.object(
         StorageEngine, '_read_document_from_disk', return_value={"rel": [str(uuid.uuid4())]})
-    mocker.patch('os.listdir', return_value=["first_document"])
+    mocker.patch('os.listdir', return_value=["first_document.json"])
 
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc])
@@ -895,7 +899,7 @@ def test_read_all_documents_relationships_lazy_loading(mocker):
             {"id": str(doc2.__id__), "rel": [str(rel.__id__)]},
         ]
     )
-    mocker.patch('os.listdir', return_value=["first_document"])
+    mocker.patch('os.listdir', return_value=["first_document.json"])
 
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc, RelDoc])
@@ -932,7 +936,7 @@ def test_read_all_documents_relationships_lazy_loading_unbound_engine(mocker):
             {"id": str(doc2.__id__), "rel": [str(rel.__id__)]},
         ]
     )
-    mocker.patch('os.listdir', return_value=["first_document"])
+    mocker.patch('os.listdir', return_value=["first_document.json"])
 
     engine = StorageEngine("test/path")
     engine.register_models([TestDoc, RelDoc])
